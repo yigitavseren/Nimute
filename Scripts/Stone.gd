@@ -5,6 +5,7 @@ signal stone_clicked(row_index, col_index, stone_node)
 var row_index : int = -1
 var col_index : int = 0
 var is_selected : bool = false
+var base_color : Color = Color(1, 1, 1)
 
 func _ready():
 	pressed.connect(_on_pressed)
@@ -18,4 +19,4 @@ func select():
 
 func deselect():
 	is_selected = false
-	modulate = Color(1, 1, 1) # Normal
+	modulate = base_color # Normal

@@ -5,23 +5,31 @@ var all_stones = []
 var selected_stones = []
 var current_turn = "Player"
 var selection_mode = "none"
-var ai_used_special = false
+var ai_special_uses_left = 0
 var current_level = 1
 
 var normal_move_masks = []
 var l_move_masks = []
 var memo = {}
 
+var special_moves = []
 var bomb_stones = []
 var bomb_move_masks = []
 var bomb_stone_ids = []
+var adj_masks = []
+
+var armored_stone_ids = []
+var current_armor_state: int = 0
 
 func _ready():
 	$EndTurnButton.pressed.connect(end_turn)
 	$MainMenuButton.pressed.connect(show_main_menu)
+	$HUD/FastForwardButton.toggled.connect(func(pressed): Engine.time_scale = 4.0 if pressed else 1.0)
 	$LevelSelectUI/Panel/Level1Button.pressed.connect(func(): start_level(1))
 	$LevelSelectUI/Panel/Level2Button.pressed.connect(func(): start_level(2))
 	$LevelSelectUI/Panel/Level3Button.pressed.connect(func(): start_level(3))
+	$LevelSelectUI/Panel/Level4Button.pressed.connect(func(): start_level(4))
+	$LevelSelectUI/Panel/Level5Button.pressed.connect(func(): start_level(5))
 	show_main_menu()
 
 func show_main_menu():
@@ -29,6 +37,7 @@ func show_main_menu():
 	$Board.hide()
 	$EndTurnButton.hide()
 	$MainMenuButton.hide()
+	$HUD.hide()
 
 func start_level(level_id: int):
 	current_level = level_id
@@ -36,6 +45,7 @@ func start_level(level_id: int):
 	$Board.show()
 	$EndTurnButton.show()
 	$MainMenuButton.show()
+	$HUD.show()
 	create_board()
 
 func create_board():
@@ -44,10 +54,16 @@ func create_board():
 	all_stones.clear()
 	selected_stones.clear()
 	bomb_stones.clear()
+	armored_stone_ids.clear()
+	current_armor_state = 0
 	selection_mode = "none"
 	current_turn = "Player"
-	ai_used_special = false
 	$EndTurnButton.disabled = false
+	
+	if current_level == 4 or current_level == 5: ai_special_uses_left = 2
+	else: ai_special_uses_left = 1
+	$Board.scale = Vector2(1.0, 1.0)
+	$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
 	
 	if current_level == 1:
 		var rows = [1, 3, 5, 7]
@@ -84,6 +100,51 @@ func create_board():
 		for r in [2, 3, 4]:
 			spawn_stone(r, -4, -4 * 80 + 40, start_y + r * 80)
 			spawn_stone(r, 4, 4 * 80 + 40, start_y + r * 80)
+			
+	elif current_level == 4:
+		var start_y = -240
+		var start_x = -320
+		for r in range(7):
+			for c in range(9):
+				var should_spawn = false
+				var is_bomb = false
+				
+				if c % 4 == 0:
+					should_spawn = true
+				elif c % 2 == 1:
+					if r % 2 == 0: should_spawn = true
+				else:
+					should_spawn = true
+					if r % 2 == 0: is_bomb = true
+					
+				if should_spawn:
+					var s = spawn_stone(r, c - 4, start_x + c * 80, start_y + r * 80)
+					if is_bomb: make_bomb(s)
+					
+	elif current_level == 5:
+		var start_y = -240
+		var start_x = -360
+		var coords = [
+			Vector2(0, 2), Vector2(0, 7),
+			Vector2(1, 1), Vector2(1, 2), Vector2(1, 3), Vector2(1, 6), Vector2(1, 7), Vector2(1, 8),
+			Vector2(2, 0), Vector2(2, 1), Vector2(2, 3), Vector2(2, 4), Vector2(2, 5), Vector2(2, 6), Vector2(2, 8), Vector2(2, 9),
+			Vector2(3, 1), Vector2(3, 2), Vector2(3, 3), Vector2(3, 6), Vector2(3, 7), Vector2(3, 8),
+			Vector2(4, 3), Vector2(4, 6),
+			Vector2(5, 4), Vector2(5, 5),
+			Vector2(6, 4)
+		]
+		var armors = [
+			Vector2(2, 3), Vector2(2, 4), Vector2(2, 5), Vector2(2, 6),
+			Vector2(3, 1), Vector2(3, 2), Vector2(3, 3), Vector2(3, 6), Vector2(3, 7), Vector2(3, 8)
+		]
+		for pos in coords:
+			var is_bottom = (pos.x == 6 and pos.y == 4)
+			var logical_c = 99 if is_bottom else int(pos.y)
+			var s = spawn_stone(int(pos.x), logical_c, start_x + pos.y * 80, start_y + pos.x * 80)
+			if is_bottom:
+				s.position.x += 40 # Visually center the bottom stone at col 4.5
+			if armors.has(pos):
+				make_armored(s)
 				
 	generate_all_move_masks()
 
@@ -99,11 +160,33 @@ func spawn_stone(r, c, x, y):
 
 func make_bomb(stone):
 	bomb_stones.append(stone)
-	stone.modulate = Color(0.2, 0.2, 0.2) # Bomba görseli (Koyu/Siyah)
+	stone.base_color = Color(0.2, 0.2, 0.2)
+	stone.modulate = stone.base_color
+
+func make_armored(stone):
+	var id = all_stones.find(stone)
+	armored_stone_ids.append(id)
+	current_armor_state |= (1 << id)
+	stone.base_color = Color(0.6, 0.2, 0.8) # Purple
+	stone.modulate = stone.base_color
+
+func build_adj_masks():
+	adj_masks.clear()
+	for i in range(all_stones.size()):
+		var mask = 0
+		var r_i = all_stones[i].row_index
+		var c_i = all_stones[i].col_index
+		for j in range(all_stones.size()):
+			if i == j: continue
+			var r_j = all_stones[j].row_index
+			var c_j = all_stones[j].col_index
+			if (r_i == r_j and abs(c_i - c_j) == 1) or (c_i == c_j and abs(r_i - r_j) == 1):
+				mask |= (1 << j)
+		adj_masks.append(mask)
 
 func generate_all_move_masks():
 	normal_move_masks.clear()
-	l_move_masks.clear()
+	special_moves.clear()
 	bomb_move_masks.clear()
 	bomb_stone_ids.clear()
 	
@@ -181,7 +264,7 @@ func generate_all_move_masks():
 				if not l_move_masks.has(mask) and not normal_move_masks.has(mask):
 					l_move_masks.append(mask)
 
-	# Bomba Etki Alanları (Aesthetic masks)
+	# Bomba Etki Alanları
 	for bomb in bomb_stones:
 		if is_instance_valid(bomb):
 			var bomb_id = all_stones.find(bomb)
@@ -192,10 +275,24 @@ func generate_all_move_masks():
 					mask |= (1 << all_stones.find(neighbor))
 			bomb_move_masks.append(mask)
 			bomb_stone_ids.append(bomb_id)
+			
+	var count_bits = func(m):
+		var c = 0
+		var temp = m
+		while temp > 0:
+			c += temp & 1
+			temp >>= 1
+		return c
+		
+	normal_move_masks.sort_custom(func(a, b): return count_bits.call(a) > count_bits.call(b))
+	l_move_masks.sort_custom(func(a, b): return count_bits.call(a) > count_bits.call(b))
+	
+	build_adj_masks()
 
 func get_stone_at_full(r: int, c: int):
 	for s in all_stones:
-		if s.row_index == r and s.col_index == c: return s
+		if is_instance_valid(s) and not s.is_queued_for_deletion():
+			if s.row_index == r and s.col_index == c: return s
 	return null
 
 func _on_stone_clicked(row_index, col_index, stone):
@@ -208,7 +305,6 @@ func _on_stone_clicked(row_index, col_index, stone):
 			selection_mode = "none"
 		return
 		
-	# Eğer hiçbir şey seçili değilse ve ilk tıklanan Bombaysa -> ANINDA PATLAT
 	if selected_stones.size() == 0 and bomb_stones.has(stone):
 		detonate_bomb(stone)
 		return
@@ -256,8 +352,19 @@ func is_contiguous(stones_arr: Array, mode: String) -> bool:
 func end_turn():
 	if selected_stones.size() == 0: return
 		
+	var to_free = []
 	for stone in selected_stones:
-		stone.queue_free()
+		var s_id = all_stones.find(stone)
+		if (current_armor_state & (1 << s_id)) != 0:
+			current_armor_state &= ~(1 << s_id)
+			stone.base_color = Color(1, 1, 1) # Zırhı kırıldı, temeli beyaza dön
+			stone.modulate = Color(1, 1, 1) # Beyaza dön
+			stone.deselect()
+		else:
+			to_free.append(stone)
+			
+	for stone in to_free:
+		if is_instance_valid(stone): stone.queue_free()
 		
 	selected_stones.clear()
 	selection_mode = "none"
@@ -269,7 +376,7 @@ func end_turn():
 	play_enemy_turn()
 
 func detonate_bomb(bomb):
-	current_turn = "Exploding" # Oyuncunun yeni hamle yapmasını engelle
+	current_turn = "Exploding"
 	$EndTurnButton.disabled = true
 	print("BOMBA PATLADI!")
 	
@@ -280,11 +387,12 @@ func detonate_bomb(bomb):
 			to_destroy.append(neighbor)
 			
 	for s in to_destroy:
-		s.modulate = Color(1, 0.2, 0.2) # Patlama görseli (Kırmızı Parlama)
+		s.modulate = Color(1, 0.2, 0.2)
 	
 	await get_tree().create_timer(0.4).timeout
 	
 	for s in to_destroy:
+		# Bomba direkt yokediyor, zırhı sormuyor.
 		if is_instance_valid(s):
 			s.queue_free()
 			
@@ -317,14 +425,14 @@ func play_enemy_turn():
 			current_board_state |= (1 << i)
 			stones_left += 1
 			
-	var max_depth = 2
-	if stones_left <= 8: max_depth = 20
+	var max_depth = 3
+	if stones_left <= 8: max_depth = 12
 	elif stones_left <= 12: max_depth = 6
-	elif stones_left <= 16: max_depth = 4
-	elif stones_left <= 20: max_depth = 3
+	elif stones_left <= 16: max_depth = 5
+	elif stones_left <= 20: max_depth = 4
 	
 	memo.clear()
-	var best_move_mask = get_best_move_mask(current_board_state, max_depth, not ai_used_special)
+	var best_move_mask = get_best_move_mask(current_board_state, current_armor_state, max_depth, ai_special_uses_left)
 	
 	if best_move_mask == 0:
 		print("Yapay Zeka hamle bulamadı!")
@@ -335,9 +443,9 @@ func play_enemy_turn():
 	var final_move = []
 	for i in range(all_stones.size()):
 		if (best_move_mask & (1 << i)) != 0:
-			final_move.append(all_stones[i])
+			if is_instance_valid(all_stones[i]) and not all_stones[i].is_queued_for_deletion():
+				final_move.append(all_stones[i])
 			
-	# Bu hamle bir bomba patlatması mıydı?
 	var is_bomb_detonation = false
 	for i in range(bomb_move_masks.size()):
 		if best_move_mask == (current_board_state & bomb_move_masks[i]):
@@ -351,17 +459,26 @@ func play_enemy_turn():
 			if is_instance_valid(s): s.modulate = Color(1, 0.2, 0.2)
 		await get_tree().create_timer(0.4).timeout
 	else:
-		if not ai_used_special and l_move_masks.has(best_move_mask):
-			ai_used_special = true
-			print("Zürafa Boss 'L Alma' özel yeteneğini kullandı!")
-		print("Yapay Zeka ", final_move.size(), " taş aldı. (Derinlik: ", max_depth, ")")
+		if ai_special_uses_left > 0 and l_move_masks.has(best_move_mask):
+			ai_special_uses_left -= 1
+			$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
+			print("Zürafa Boss 'L Alma' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
+		print("Yapay Zeka ", final_move.size(), " taşı hedef aldı. (Derinlik: ", max_depth, ")")
 		for s in final_move:
 			if is_instance_valid(s) and not s.is_queued_for_deletion():
 				s.select()
 				await get_tree().create_timer(0.3).timeout
 				
 	for s in final_move:
-		if is_instance_valid(s): s.queue_free()
+		var s_id = all_stones.find(s)
+		if (current_armor_state & (1 << s_id)) != 0:
+			current_armor_state &= ~(1 << s_id)
+			if is_instance_valid(s): 
+				s.base_color = Color(1, 1, 1)
+				s.modulate = Color(1, 1, 1)
+				s.deselect()
+		else:
+			if is_instance_valid(s): s.queue_free()
 			
 	await get_tree().process_frame
 	if check_win_condition(): return
@@ -370,9 +487,11 @@ func play_enemy_turn():
 	$EndTurnButton.disabled = false
 	print("Sıra sende!")
 
-func get_best_move_mask(board_state: int, max_depth: int, special_available: bool) -> int:
-	var best_score = -9999
+func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, special_uses: int) -> int:
+	var best_score: float = -9999.0
 	var best_moves = []
+	var alpha: float = -9999.0
+	var beta: float = 9999.0
 	
 	var available_moves = []
 	for m in normal_move_masks:
@@ -384,7 +503,7 @@ func get_best_move_mask(board_state: int, max_depth: int, special_available: boo
 			available_moves.append(board_state & bomb_move_masks[i])
 			
 	var special_moves = []
-	if special_available:
+	if special_uses > 0:
 		for m in l_move_masks:
 			if (board_state & m) == m: special_moves.append(m)
 			
@@ -393,9 +512,15 @@ func get_best_move_mask(board_state: int, max_depth: int, special_available: boo
 	if all_moves.size() == 0: return 0
 	
 	for move in all_moves:
-		var new_state = board_state & ~move
-		var is_special_used = special_available and special_moves.has(move)
-		var score = minimax(new_state, max_depth - 1, false, special_available and not is_special_used)
+		var hit_armored = move & armor_state
+		var destroyed = move & ~armor_state
+		var new_state = board_state & ~destroyed
+		var new_armor = armor_state & ~hit_armored
+		
+		var is_special_used = special_uses > 0 and special_moves.has(move)
+		var new_special_uses = special_uses - 1 if is_special_used else special_uses
+		
+		var score = minimax(new_state, new_armor, max_depth - 1, alpha, beta, false, new_special_uses)
 		
 		if score > best_score:
 			best_score = score
@@ -403,17 +528,66 @@ func get_best_move_mask(board_state: int, max_depth: int, special_available: boo
 		elif score == best_score:
 			best_moves.append(move)
 			
+		alpha = max(alpha, best_score)
+			
 	return best_moves[randi() % best_moves.size()]
 
-func minimax(board_state: int, depth: int, is_ai_turn: bool, special_available: bool) -> int:
+func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta: float, is_ai_turn: bool, special_uses: int) -> float:
 	if board_state == 0:
-		return 1 if is_ai_turn else -1
+		return 1.0 if is_ai_turn else -1.0
 	if depth == 0:
-		return 0
+		var remaining = board_state
+		var sizes = []
+		while remaining > 0:
+			var i = 0
+			while (remaining & (1 << i)) == 0:
+				i += 1
+			var comp_mask = (1 << i)
+			var frontier = comp_mask
+			while frontier > 0:
+				var next_frontier = 0
+				var temp = frontier
+				while temp > 0:
+					var bit = 0
+					while (temp & (1 << bit)) == 0: bit += 1
+					next_frontier |= (adj_masks[bit] & remaining)
+					temp &= ~(1 << bit)
+				next_frontier &= ~comp_mask
+				comp_mask |= next_frontier
+				frontier = next_frontier
+			var v = 0
+			var temp_comp = comp_mask
+			while temp_comp > 0:
+				var bit = 0
+				while (temp_comp & (1 << bit)) == 0: bit += 1
+				v += 1
+				if (armor_state & (1 << bit)) != 0: v += 1
+				temp_comp &= ~(1 << bit)
+			sizes.append(v)
+			remaining &= ~comp_mask
+		var max_size = 0
+		var nim_sum = 0
+		for s in sizes:
+			if s > max_size: max_size = s
+			nim_sum ^= s
+		var score_val = 0.0
+		if max_size <= 1:
+			score_val = 0.8 if sizes.size() % 2 == 0 else -0.8
+		else:
+			score_val = 0.8 if nim_sum != 0 else -0.8
+		var ai_perspective = score_val if is_ai_turn else -score_val
+		ai_perspective += 0.05 * special_uses
+		return ai_perspective
 		
 	var key = board_state
-	if is_ai_turn: key |= (1 << 30)
-	if special_available: key |= (1 << 31)
+	if is_ai_turn: key |= (1 << 60)
+	key |= (special_uses << 61)
+	
+	var packed_armor = 0
+	for i in range(armored_stone_ids.size()):
+		if (armor_state & (1 << armored_stone_ids[i])) != 0:
+			packed_armor |= (1 << i)
+	key |= (packed_armor << 35)
 	
 	if memo.has(key):
 		var stored = memo[key]
@@ -429,7 +603,7 @@ func minimax(board_state: int, depth: int, is_ai_turn: bool, special_available: 
 			available_moves.append(board_state & bomb_move_masks[i])
 			
 	var special_moves = []
-	if is_ai_turn and special_available:
+	if is_ai_turn and special_uses > 0:
 		for m in l_move_masks:
 			if (board_state & m) == m: special_moves.append(m)
 			
@@ -437,25 +611,36 @@ func minimax(board_state: int, depth: int, is_ai_turn: bool, special_available: 
 	all_moves.append_array(special_moves)
 	
 	if is_ai_turn:
-		var max_eval = -9999
+		var max_eval: float = -9999.0
 		for move in all_moves:
-			var new_state = board_state & ~move
-			var is_special_used = special_available and special_moves.has(move)
-			var eval = minimax(new_state, depth - 1, false, special_available and not is_special_used)
+			var hit_armored = move & armor_state
+			var destroyed = move & ~armor_state
+			var new_state = board_state & ~destroyed
+			var new_armor = armor_state & ~hit_armored
+			
+			var is_special_used = special_uses > 0 and special_moves.has(move)
+			var new_special_uses = special_uses - 1 if is_special_used else special_uses
+			var eval = minimax(new_state, new_armor, depth - 1, alpha, beta, false, new_special_uses)
 			max_eval = max(max_eval, eval)
-			if max_eval == 1: 
-				memo[key] = 1
-				return 1
-		if max_eval == -1: memo[key] = -1
+			alpha = max(alpha, eval)
+			if beta <= alpha:
+				break
+		if max_eval == 1.0: memo[key] = 1.0
+		elif max_eval == -1.0: memo[key] = -1.0
 		return max_eval
 	else:
-		var min_eval = 9999
+		var min_eval: float = 9999.0
 		for move in all_moves:
-			var new_state = board_state & ~move
-			var eval = minimax(new_state, depth - 1, true, special_available)
+			var hit_armored = move & armor_state
+			var destroyed = move & ~armor_state
+			var new_state = board_state & ~destroyed
+			var new_armor = armor_state & ~hit_armored
+			
+			var eval = minimax(new_state, new_armor, depth - 1, alpha, beta, true, special_uses)
 			min_eval = min(min_eval, eval)
-			if min_eval == -1: 
-				memo[key] = -1
-				return -1
-		if min_eval == 1: memo[key] = 1
+			beta = min(beta, eval)
+			if beta <= alpha:
+				break
+		if min_eval == 1.0: memo[key] = 1.0
+		elif min_eval == -1.0: memo[key] = -1.0
 		return min_eval
