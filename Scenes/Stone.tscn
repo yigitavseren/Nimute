@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3 uid="uid://c7t8r9s0d1f2g"]
+
+[ext_resource type="Script" path="res://Scripts/Stone.gd" id="1_a1b2c"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
+bg_color = Color(0.2, 0.2, 0.2, 1)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[node name="Stone" type="Button"]
+custom_minimum_size = Vector2(60, 60)
+offset_right = 60.0
+offset_bottom = 60.0
+theme_override_styles/normal = SubResource("StyleBoxFlat_1")
+theme_override_styles/hover = SubResource("StyleBoxFlat_1")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_1")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_1")
+theme_override_styles/focus = SubResource("StyleBoxFlat_1")
+script = ExtResource("1_a1b2c")

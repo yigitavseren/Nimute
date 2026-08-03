@@ -1,0 +1,461 @@
+extends Node2D
+
+var stone_scene = preload("res://Scenes/Stone.tscn")
+var all_stones = []
+var selected_stones = []
+var current_turn = "Player"
+var selection_mode = "none"
+var ai_used_special = false
+var current_level = 1
+
+var normal_move_masks = []
+var l_move_masks = []
+var memo = {}
+
+var bomb_stones = []
+var bomb_move_masks = []
+var bomb_stone_ids = []
+
+func _ready():
+	$EndTurnButton.pressed.connect(end_turn)
+	$MainMenuButton.pressed.connect(show_main_menu)
+	$LevelSelectUI/Panel/Level1Button.pressed.connect(func(): start_level(1))
+	$LevelSelectUI/Panel/Level2Button.pressed.connect(func(): start_level(2))
+	$LevelSelectUI/Panel/Level3Button.pressed.connect(func(): start_level(3))
+	show_main_menu()
+
+func show_main_menu():
+	$LevelSelectUI.show()
+	$Board.hide()
+	$EndTurnButton.hide()
+	$MainMenuButton.hide()
+
+func start_level(level_id: int):
+	current_level = level_id
+	$LevelSelectUI.hide()
+	$Board.show()
+	$EndTurnButton.show()
+	$MainMenuButton.show()
+	create_board()
+
+func create_board():
+	for s in all_stones:
+		if is_instance_valid(s): s.queue_free()
+	all_stones.clear()
+	selected_stones.clear()
+	bomb_stones.clear()
+	selection_mode = "none"
+	current_turn = "Player"
+	ai_used_special = false
+	$EndTurnButton.disabled = false
+	
+	if current_level == 1:
+		var rows = [1, 3, 5, 7]
+		var start_y = -120
+		for r in range(rows.size()):
+			var count = rows[r]
+			var start_x = -(count * 80) / 2 
+			var start_col = -int(count / 2.0)
+			for i in range(count):
+				spawn_stone(r, start_col + i, start_x + (i * 80) + 40, start_y + (r * 80))
+				
+	elif current_level == 2:
+		var start_y = -160
+		for r in range(5):
+			var start_x = -(5 * 80) / 2
+			for c in range(5):
+				spawn_stone(r, c - 2, start_x + (c * 80) + 40, start_y + (r * 80))
+				
+	elif current_level == 3:
+		var start_y = -160
+		# Top Row
+		for c in [-1, 0, 1]: spawn_stone(-1, c, c * 80 + 40, start_y - 80)
+		
+		# Middle Row (Wings and Bomb)
+		for c in [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]:
+			spawn_stone(0, c, c * 80 + 40, start_y)
+		var b = spawn_stone(0, 0, 40, start_y)
+		make_bomb(b)
+		
+		# Bottom Row 1
+		for c in [-1, 0, 1]: spawn_stone(1, c, c * 80 + 40, start_y + 80)
+		
+		# UFO Legs
+		for r in [2, 3, 4]:
+			spawn_stone(r, -4, -4 * 80 + 40, start_y + r * 80)
+			spawn_stone(r, 4, 4 * 80 + 40, start_y + r * 80)
+				
+	generate_all_move_masks()
+
+func spawn_stone(r, c, x, y):
+	var stone = stone_scene.instantiate()
+	stone.row_index = r
+	stone.col_index = c
+	stone.position = Vector2(x, y)
+	stone.stone_clicked.connect(_on_stone_clicked)
+	$Board.add_child(stone)
+	all_stones.append(stone)
+	return stone
+
+func make_bomb(stone):
+	bomb_stones.append(stone)
+	stone.modulate = Color(0.2, 0.2, 0.2) # Bomba görseli (Koyu/Siyah)
+
+func generate_all_move_masks():
+	normal_move_masks.clear()
+	l_move_masks.clear()
+	bomb_move_masks.clear()
+	bomb_stone_ids.clear()
+	
+	var row_groups = {}
+	var col_groups = {}
+	for i in range(all_stones.size()):
+		var s = all_stones[i]
+		if not row_groups.has(s.row_index): row_groups[s.row_index] = []
+		row_groups[s.row_index].append(s)
+		if not col_groups.has(s.col_index): col_groups[s.col_index] = []
+		col_groups[s.col_index].append(s)
+		
+	# Yatay segmentler
+	for r in row_groups.values():
+		r.sort_custom(func(a, b): return a.col_index < b.col_index)
+		for start in range(r.size()):
+			for end in range(start, r.size()):
+				var is_contig = true
+				for i in range(start, end):
+					if r[i+1].col_index - r[i].col_index != 1:
+						is_contig = false
+						break
+				if is_contig:
+					var mask = 0
+					for i in range(start, end + 1):
+						mask |= (1 << all_stones.find(r[i]))
+					if not normal_move_masks.has(mask): normal_move_masks.append(mask)
+					
+	# Dikey segmentler
+	for c in col_groups.values():
+		c.sort_custom(func(a, b): return a.row_index < b.row_index)
+		for start in range(c.size()):
+			for end in range(start, c.size()):
+				var is_contig = true
+				for i in range(start, end):
+					if c[i+1].row_index - c[i].row_index != 1:
+						is_contig = false
+						break
+				if is_contig:
+					var mask = 0
+					for i in range(start, end + 1):
+						mask |= (1 << all_stones.find(c[i]))
+					if not normal_move_masks.has(mask): normal_move_masks.append(mask)
+					
+	# L şekli segmentler
+	for corner in all_stones:
+		var row_segs = []
+		for dir in [-1, 1]:
+			var current_seg = [corner]
+			var col = corner.col_index
+			while true:
+				col += dir
+				var next_s = get_stone_at_full(corner.row_index, col)
+				if next_s:
+					current_seg.append(next_s)
+					row_segs.append(current_seg.duplicate())
+				else: break
+		var col_segs = []
+		for dir in [-1, 1]:
+			var current_seg = [corner]
+			var row = corner.row_index
+			while true:
+				row += dir
+				var next_s = get_stone_at_full(row, corner.col_index)
+				if next_s:
+					current_seg.append(next_s)
+					col_segs.append(current_seg.duplicate())
+				else: break
+					
+		for rs in row_segs:
+			for cs in col_segs:
+				var mask = 0
+				for s in rs: mask |= (1 << all_stones.find(s))
+				for s in cs: mask |= (1 << all_stones.find(s))
+				if not l_move_masks.has(mask) and not normal_move_masks.has(mask):
+					l_move_masks.append(mask)
+
+	# Bomba Etki Alanları (Aesthetic masks)
+	for bomb in bomb_stones:
+		if is_instance_valid(bomb):
+			var bomb_id = all_stones.find(bomb)
+			var mask = (1 << bomb_id)
+			for dir in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+				var neighbor = get_stone_at_full(bomb.row_index + dir.x, bomb.col_index + dir.y)
+				if neighbor:
+					mask |= (1 << all_stones.find(neighbor))
+			bomb_move_masks.append(mask)
+			bomb_stone_ids.append(bomb_id)
+
+func get_stone_at_full(r: int, c: int):
+	for s in all_stones:
+		if s.row_index == r and s.col_index == c: return s
+	return null
+
+func _on_stone_clicked(row_index, col_index, stone):
+	if current_turn != "Player": return
+	
+	if stone.is_selected:
+		stone.deselect()
+		selected_stones.erase(stone)
+		if selected_stones.size() <= 1:
+			selection_mode = "none"
+		return
+		
+	# Eğer hiçbir şey seçili değilse ve ilk tıklanan Bombaysa -> ANINDA PATLAT
+	if selected_stones.size() == 0 and bomb_stones.has(stone):
+		detonate_bomb(stone)
+		return
+		
+	var new_selected = selected_stones.duplicate()
+	new_selected.append(stone)
+	
+	if new_selected.size() == 1:
+		stone.select()
+		selected_stones.append(stone)
+		return
+		
+	var mode = selection_mode
+	if mode == "none":
+		if row_index == selected_stones[0].row_index: mode = "row"
+		elif col_index == selected_stones[0].col_index: mode = "col"
+		else: return
+
+	if mode == "row" and row_index != selected_stones[0].row_index: return
+	if mode == "col" and col_index != selected_stones[0].col_index: return
+		
+	if not is_contiguous(new_selected, mode):
+		print("Bitişik seçmelisiniz!")
+		return
+		
+	selection_mode = mode
+	stone.select()
+	selected_stones.append(stone)
+
+func is_contiguous(stones_arr: Array, mode: String) -> bool:
+	if stones_arr.size() <= 1: return true
+	var indices = []
+	for s in stones_arr:
+		if mode == "row": indices.append(s.col_index)
+		else: indices.append(s.row_index)
+	indices.sort()
+	
+	var min_idx = indices[0]
+	var max_idx = indices[indices.size()-1]
+	
+	if max_idx - min_idx != indices.size() - 1:
+		return false
+	return true
+
+func end_turn():
+	if selected_stones.size() == 0: return
+		
+	for stone in selected_stones:
+		stone.queue_free()
+		
+	selected_stones.clear()
+	selection_mode = "none"
+	
+	await get_tree().process_frame
+	if check_win_condition(): return
+	
+	current_turn = "Enemy"
+	play_enemy_turn()
+
+func detonate_bomb(bomb):
+	current_turn = "Exploding" # Oyuncunun yeni hamle yapmasını engelle
+	$EndTurnButton.disabled = true
+	print("BOMBA PATLADI!")
+	
+	var to_destroy = [bomb]
+	for dir in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+		var neighbor = get_stone_at_full(bomb.row_index + dir.x, bomb.col_index + dir.y)
+		if neighbor and is_instance_valid(neighbor) and not neighbor.is_queued_for_deletion():
+			to_destroy.append(neighbor)
+			
+	for s in to_destroy:
+		s.modulate = Color(1, 0.2, 0.2) # Patlama görseli (Kırmızı Parlama)
+	
+	await get_tree().create_timer(0.4).timeout
+	
+	for s in to_destroy:
+		if is_instance_valid(s):
+			s.queue_free()
+			
+	await get_tree().process_frame
+	if check_win_condition(): return
+	
+	current_turn = "Enemy"
+	play_enemy_turn()
+
+func check_win_condition() -> bool:
+	var remaining = 0
+	for s in all_stones:
+		if is_instance_valid(s) and not s.is_queued_for_deletion(): remaining += 1
+		
+	if remaining == 0:
+		print(current_turn + " kaybetti! (Son taşı alan kaybeder)")
+		return true
+	return false
+
+func play_enemy_turn():
+	$EndTurnButton.disabled = true
+	await get_tree().create_timer(1.0).timeout
+	if current_turn != "Enemy": return
+	
+	var current_board_state = 0
+	var stones_left = 0
+	for i in range(all_stones.size()):
+		var s = all_stones[i]
+		if is_instance_valid(s) and not s.is_queued_for_deletion():
+			current_board_state |= (1 << i)
+			stones_left += 1
+			
+	var max_depth = 2
+	if stones_left <= 8: max_depth = 20
+	elif stones_left <= 12: max_depth = 6
+	elif stones_left <= 16: max_depth = 4
+	elif stones_left <= 20: max_depth = 3
+	
+	memo.clear()
+	var best_move_mask = get_best_move_mask(current_board_state, max_depth, not ai_used_special)
+	
+	if best_move_mask == 0:
+		print("Yapay Zeka hamle bulamadı!")
+		current_turn = "Player"
+		$EndTurnButton.disabled = false
+		return
+		
+	var final_move = []
+	for i in range(all_stones.size()):
+		if (best_move_mask & (1 << i)) != 0:
+			final_move.append(all_stones[i])
+			
+	# Bu hamle bir bomba patlatması mıydı?
+	var is_bomb_detonation = false
+	for i in range(bomb_move_masks.size()):
+		if best_move_mask == (current_board_state & bomb_move_masks[i]):
+			if not normal_move_masks.has(best_move_mask):
+				is_bomb_detonation = true
+				break
+				
+	if is_bomb_detonation:
+		print("Yapay Zeka BOMBA PATLATTI!")
+		for s in final_move:
+			if is_instance_valid(s): s.modulate = Color(1, 0.2, 0.2)
+		await get_tree().create_timer(0.4).timeout
+	else:
+		if not ai_used_special and l_move_masks.has(best_move_mask):
+			ai_used_special = true
+			print("Zürafa Boss 'L Alma' özel yeteneğini kullandı!")
+		print("Yapay Zeka ", final_move.size(), " taş aldı. (Derinlik: ", max_depth, ")")
+		for s in final_move:
+			if is_instance_valid(s) and not s.is_queued_for_deletion():
+				s.select()
+				await get_tree().create_timer(0.3).timeout
+				
+	for s in final_move:
+		if is_instance_valid(s): s.queue_free()
+			
+	await get_tree().process_frame
+	if check_win_condition(): return
+	
+	current_turn = "Player"
+	$EndTurnButton.disabled = false
+	print("Sıra sende!")
+
+func get_best_move_mask(board_state: int, max_depth: int, special_available: bool) -> int:
+	var best_score = -9999
+	var best_moves = []
+	
+	var available_moves = []
+	for m in normal_move_masks:
+		if (board_state & m) == m: available_moves.append(m)
+		
+	for i in range(bomb_move_masks.size()):
+		var b_id = bomb_stone_ids[i]
+		if (board_state & (1 << b_id)) != 0:
+			available_moves.append(board_state & bomb_move_masks[i])
+			
+	var special_moves = []
+	if special_available:
+		for m in l_move_masks:
+			if (board_state & m) == m: special_moves.append(m)
+			
+	var all_moves = available_moves.duplicate()
+	all_moves.append_array(special_moves)
+	if all_moves.size() == 0: return 0
+	
+	for move in all_moves:
+		var new_state = board_state & ~move
+		var is_special_used = special_available and special_moves.has(move)
+		var score = minimax(new_state, max_depth - 1, false, special_available and not is_special_used)
+		
+		if score > best_score:
+			best_score = score
+			best_moves = [move]
+		elif score == best_score:
+			best_moves.append(move)
+			
+	return best_moves[randi() % best_moves.size()]
+
+func minimax(board_state: int, depth: int, is_ai_turn: bool, special_available: bool) -> int:
+	if board_state == 0:
+		return 1 if is_ai_turn else -1
+	if depth == 0:
+		return 0
+		
+	var key = board_state
+	if is_ai_turn: key |= (1 << 30)
+	if special_available: key |= (1 << 31)
+	
+	if memo.has(key):
+		var stored = memo[key]
+		if stored != 0: return stored
+		
+	var available_moves = []
+	for m in normal_move_masks:
+		if (board_state & m) == m: available_moves.append(m)
+		
+	for i in range(bomb_move_masks.size()):
+		var b_id = bomb_stone_ids[i]
+		if (board_state & (1 << b_id)) != 0:
+			available_moves.append(board_state & bomb_move_masks[i])
+			
+	var special_moves = []
+	if is_ai_turn and special_available:
+		for m in l_move_masks:
+			if (board_state & m) == m: special_moves.append(m)
+			
+	var all_moves = available_moves.duplicate()
+	all_moves.append_array(special_moves)
+	
+	if is_ai_turn:
+		var max_eval = -9999
+		for move in all_moves:
+			var new_state = board_state & ~move
+			var is_special_used = special_available and special_moves.has(move)
+			var eval = minimax(new_state, depth - 1, false, special_available and not is_special_used)
+			max_eval = max(max_eval, eval)
+			if max_eval == 1: 
+				memo[key] = 1
+				return 1
+		if max_eval == -1: memo[key] = -1
+		return max_eval
+	else:
+		var min_eval = 9999
+		for move in all_moves:
+			var new_state = board_state & ~move
+			var eval = minimax(new_state, depth - 1, true, special_available)
+			min_eval = min(min_eval, eval)
+			if min_eval == -1: 
+				memo[key] = -1
+				return -1
+		if min_eval == 1: memo[key] = 1
+		return min_eval
