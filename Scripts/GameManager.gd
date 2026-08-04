@@ -46,6 +46,7 @@ func start_level(level_id: int):
 	$EndTurnButton.show()
 	$MainMenuButton.show()
 	$HUD.show()
+	$HUD/GameOverPanel.hide()
 	create_board()
 
 func create_board():
@@ -409,6 +410,13 @@ func check_win_condition() -> bool:
 		
 	if remaining == 0:
 		print(current_turn + " kaybetti! (Son taşı alan kaybeder)")
+		$HUD/GameOverPanel.show()
+		if current_turn == "Player":
+			$HUD/GameOverPanel/GameOverLabel.text = "KAYBETTİN!\n(Son Taşı Alan Kaybeder)"
+			$HUD/GameOverPanel/GameOverLabel.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
+		else:
+			$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nZürafa Kaybetti!"
+			$HUD/GameOverPanel/GameOverLabel.add_theme_color_override("font_color", Color(0.2, 1.0, 0.2))
 		return true
 	return false
 
@@ -425,11 +433,11 @@ func play_enemy_turn():
 			current_board_state |= (1 << i)
 			stones_left += 1
 			
-	var max_depth = 3
-	if stones_left <= 8: max_depth = 12
-	elif stones_left <= 12: max_depth = 6
-	elif stones_left <= 16: max_depth = 5
-	elif stones_left <= 20: max_depth = 4
+	var max_depth = 10
+	if stones_left <= 10: max_depth = 30
+	elif stones_left <= 12: max_depth = 20
+	elif stones_left <= 15: max_depth = 12
+	elif stones_left <= 18: max_depth = 8
 	
 	memo.clear()
 	var best_move_mask = get_best_move_mask(current_board_state, current_armor_state, max_depth, ai_special_uses_left)
@@ -487,7 +495,10 @@ func play_enemy_turn():
 	$EndTurnButton.disabled = false
 	print("Sıra sende!")
 
+var search_node_count: int = 0
+
 func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, special_uses: int) -> int:
+	search_node_count = 0
 	var best_score: float = -9999.0
 	var best_moves = []
 	var alpha: float = -9999.0
@@ -533,9 +544,12 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 	return best_moves[randi() % best_moves.size()]
 
 func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta: float, is_ai_turn: bool, special_uses: int) -> float:
+	var original_alpha = alpha
+	var original_beta = beta
+	search_node_count += 1
 	if board_state == 0:
-		return 1.0 if is_ai_turn else -1.0
-	if depth == 0:
+		return (1.0 + depth * 0.01) if is_ai_turn else -(1.0 + depth * 0.01)
+	if depth <= 0 or search_node_count > 200000:
 		var remaining = board_state
 		var sizes = []
 		while remaining > 0:
@@ -575,23 +589,33 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			score_val = 0.8 if sizes.size() % 2 == 0 else -0.8
 		else:
 			score_val = 0.8 if nim_sum != 0 else -0.8
+			
 		var ai_perspective = score_val if is_ai_turn else -score_val
 		ai_perspective += 0.05 * special_uses
+		
+		var l_shape_count = 0
+		for m in l_move_masks:
+			if (board_state & m) == m: l_shape_count += 1
+		ai_perspective += 0.02 * l_shape_count
+		
+		var stones_count = 0
+		var temp_rem = board_state
+		while temp_rem > 0:
+			stones_count += temp_rem & 1
+			temp_rem >>= 1
+		ai_perspective += 0.005 * stones_count
+		
+		ai_perspective += randf_range(-0.0001, 0.0001)
 		return ai_perspective
 		
-	var key = board_state
-	if is_ai_turn: key |= (1 << 60)
-	key |= (special_uses << 61)
-	
-	var packed_armor = 0
-	for i in range(armored_stone_ids.size()):
-		if (armor_state & (1 << armored_stone_ids[i])) != 0:
-			packed_armor |= (1 << i)
-	key |= (packed_armor << 35)
-	
+	var key = board_state | (armor_state << 35) | ((1 if is_ai_turn else 0) << 60) | (special_uses << 61)
 	if memo.has(key):
 		var stored = memo[key]
-		if stored != 0: return stored
+		if stored.depth >= depth:
+			if stored.bound == 0: return stored.score
+			elif stored.bound == 1: alpha = max(alpha, stored.score)
+			elif stored.bound == -1: beta = min(beta, stored.score)
+			if alpha >= beta: return stored.score
 		
 	var available_moves = []
 	for m in normal_move_masks:
@@ -625,8 +649,10 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			alpha = max(alpha, eval)
 			if beta <= alpha:
 				break
-		if max_eval == 1.0: memo[key] = 1.0
-		elif max_eval == -1.0: memo[key] = -1.0
+		var bound = 0
+		if max_eval <= original_alpha: bound = -1
+		elif max_eval >= original_beta: bound = 1
+		memo[key] = {"depth": depth, "score": max_eval, "bound": bound}
 		return max_eval
 	else:
 		var min_eval: float = 9999.0
@@ -641,6 +667,8 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			beta = min(beta, eval)
 			if beta <= alpha:
 				break
-		if min_eval == 1.0: memo[key] = 1.0
-		elif min_eval == -1.0: memo[key] = -1.0
+		var bound = 0
+		if min_eval <= original_alpha: bound = -1
+		elif min_eval >= original_beta: bound = 1
+		memo[key] = {"depth": depth, "score": min_eval, "bound": bound}
 		return min_eval
