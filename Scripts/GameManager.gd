@@ -7,10 +7,11 @@ var current_turn = "Player"
 var selection_mode = "none"
 var ai_special_uses_left = 0
 var ai_ultimate_uses_left = 0
-var current_level = 1
+var current_level: int = 1
 
 var normal_move_masks = []
 var l_move_masks = []
+var ai_diagonal_move_masks = []
 var ultimate_move_masks = []
 var memo = {}
 
@@ -23,25 +24,48 @@ var adj_masks = []
 var armored_stone_ids = []
 var current_armor_state: int = 0
 
+var player_special_uses_left: int = 0
+
 func _ready():
 	$EndTurnButton.pressed.connect(end_turn)
 	$MainMenuButton.pressed.connect(show_main_menu)
 	$HUD/FastForwardButton.toggled.connect(func(pressed): Engine.time_scale = 4.0 if pressed else 1.0)
-	$LevelSelectUI/Panel/PartTitle.pressed.connect(func():
-		$LevelSelectUI/Panel/LevelButtons.show()
-		$LevelSelectUI/Panel/PartTitle.hide()
+	$HUD/ToggleLMoveButton.toggled.connect(func(pressed):
+		for s in selected_stones: s.deselect()
+		selected_stones.clear()
+		validate_selection()
 	)
-	$LevelSelectUI/Panel/LevelButtons/BackButton.pressed.connect(func():
-		$LevelSelectUI/Panel/LevelButtons.hide()
-		$LevelSelectUI/Panel/PartTitle.show()
+	$LevelSelectUI/Panel/Part1Button.pressed.connect(func():
+		$LevelSelectUI/Panel/Part1LevelButtons.show()
+		$LevelSelectUI/Panel/Part2LevelButtons.hide()
+		$LevelSelectUI/Panel/Part1Button.hide()
+		$LevelSelectUI/Panel/Part2Button.hide()
 	)
-	$LevelSelectUI/Panel/LevelButtons/Level1Button.pressed.connect(func(): start_level(1))
-	$LevelSelectUI/Panel/LevelButtons/Level2Button.pressed.connect(func(): start_level(2))
-	$LevelSelectUI/Panel/LevelButtons/Level3Button.pressed.connect(func(): start_level(3))
-	$LevelSelectUI/Panel/LevelButtons/Level4Button.pressed.connect(func(): start_level(4))
-	$LevelSelectUI/Panel/LevelButtons/Level5Button.pressed.connect(func(): start_level(5))
-	$LevelSelectUI/Panel/LevelButtons/Level6Button.pressed.connect(func(): start_level(6))
-	$LevelSelectUI/Panel/LevelButtons/Level7Button.pressed.connect(func(): start_level(7))
+	$LevelSelectUI/Panel/Part2Button.pressed.connect(func():
+		$LevelSelectUI/Panel/Part2LevelButtons.show()
+		$LevelSelectUI/Panel/Part1LevelButtons.hide()
+		$LevelSelectUI/Panel/Part1Button.hide()
+		$LevelSelectUI/Panel/Part2Button.hide()
+	)
+	$LevelSelectUI/Panel/Part1LevelButtons/BackButton.pressed.connect(func():
+		$LevelSelectUI/Panel/Part1LevelButtons.hide()
+		$LevelSelectUI/Panel/Part1Button.show()
+		$LevelSelectUI/Panel/Part2Button.show()
+	)
+	$LevelSelectUI/Panel/Part2LevelButtons/BackButton2.pressed.connect(func():
+		$LevelSelectUI/Panel/Part2LevelButtons.hide()
+		$LevelSelectUI/Panel/Part1Button.show()
+		$LevelSelectUI/Panel/Part2Button.show()
+	)
+	$LevelSelectUI/Panel/Part1LevelButtons/Level1Button.pressed.connect(func(): start_level(1))
+	$LevelSelectUI/Panel/Part1LevelButtons/Level2Button.pressed.connect(func(): start_level(2))
+	$LevelSelectUI/Panel/Part1LevelButtons/Level3Button.pressed.connect(func(): start_level(3))
+	$LevelSelectUI/Panel/Part1LevelButtons/Level4Button.pressed.connect(func(): start_level(4))
+	$LevelSelectUI/Panel/Part1LevelButtons/Level5Button.pressed.connect(func(): start_level(5))
+	$LevelSelectUI/Panel/Part1LevelButtons/Level6Button.pressed.connect(func(): start_level(6))
+	$LevelSelectUI/Panel/Part1LevelButtons/Level7Button.pressed.connect(func(): start_level(7))
+	
+	$LevelSelectUI/Panel/Part2LevelButtons/Level8Button.pressed.connect(func(): start_level(8))
 	
 	# --- UI STYLING ---
 	var panel_style = StyleBoxFlat.new()
@@ -72,10 +96,23 @@ func _ready():
 	var title_hover = title_normal.duplicate()
 	title_hover.bg_color = Color(0.8, 0.5, 0.2)
 	
-	$LevelSelectUI/Panel/PartTitle.add_theme_stylebox_override("normal", title_normal)
-	$LevelSelectUI/Panel/PartTitle.add_theme_stylebox_override("hover", title_hover)
+	$LevelSelectUI/Panel/Part1Button.add_theme_stylebox_override("normal", title_normal)
+	$LevelSelectUI/Panel/Part1Button.add_theme_stylebox_override("hover", title_hover)
 	
-	for btn in $LevelSelectUI/Panel/LevelButtons.get_children():
+	var title2_normal = btn_normal.duplicate()
+	title2_normal.bg_color = Color(0.3, 0.6, 0.8) # Light blue
+	var title2_hover = title2_normal.duplicate()
+	title2_hover.bg_color = Color(0.4, 0.7, 0.9)
+	
+	$LevelSelectUI/Panel/Part2Button.add_theme_stylebox_override("normal", title2_normal)
+	$LevelSelectUI/Panel/Part2Button.add_theme_stylebox_override("hover", title2_hover)
+	
+	for btn in $LevelSelectUI/Panel/Part1LevelButtons.get_children():
+		if btn is Button:
+			btn.add_theme_stylebox_override("normal", btn_normal)
+			btn.add_theme_stylebox_override("hover", btn_hover)
+			
+	for btn in $LevelSelectUI/Panel/Part2LevelButtons.get_children():
 		if btn is Button:
 			btn.add_theme_stylebox_override("normal", btn_normal)
 			btn.add_theme_stylebox_override("hover", btn_hover)
@@ -84,14 +121,20 @@ func _ready():
 	back_normal.bg_color = Color(0.6, 0.2, 0.2)
 	var back_hover = back_normal.duplicate()
 	back_hover.bg_color = Color(0.8, 0.3, 0.3)
-	$LevelSelectUI/Panel/LevelButtons/BackButton.add_theme_stylebox_override("normal", back_normal)
-	$LevelSelectUI/Panel/LevelButtons/BackButton.add_theme_stylebox_override("hover", back_hover)
+	$LevelSelectUI/Panel/Part1LevelButtons/BackButton.add_theme_stylebox_override("normal", back_normal)
+	$LevelSelectUI/Panel/Part1LevelButtons/BackButton.add_theme_stylebox_override("hover", back_hover)
+	$LevelSelectUI/Panel/Part2LevelButtons/BackButton2.add_theme_stylebox_override("normal", back_normal)
+	$LevelSelectUI/Panel/Part2LevelButtons/BackButton2.add_theme_stylebox_override("hover", back_hover)
 	# -----------------
 	
 	show_main_menu()
 
 func show_main_menu():
 	$LevelSelectUI.show()
+	$LevelSelectUI/Panel/Part1Button.show()
+	$LevelSelectUI/Panel/Part2Button.show()
+	$LevelSelectUI/Panel/Part1LevelButtons.hide()
+	$LevelSelectUI/Panel/Part2LevelButtons.hide()
 	$Board.hide()
 	$EndTurnButton.hide()
 	$MainMenuButton.hide()
@@ -119,19 +162,32 @@ func create_board():
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	
-	if current_level >= 4: ai_special_uses_left = 2
-	else: ai_special_uses_left = 1
+	if current_level == 8: player_special_uses_left = 1
+	else: player_special_uses_left = 0
+	
+	if current_level >= 4 and current_level <= 7: ai_special_uses_left = 2
+	elif current_level < 4: ai_special_uses_left = 1
+	else: ai_special_uses_left = 2 # Level 8 Yelkenci çapraz hakkı
 	
 	if current_level == 7: ai_ultimate_uses_left = 1
 	else: ai_ultimate_uses_left = 0
 	
-	if current_level == 7:
+	if current_level == 7 or current_level == 8:
 		$Board.scale = Vector2(0.85, 0.85)
 	else:
 		$Board.scale = Vector2(1.0, 1.0)
-	$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
-	if ai_ultimate_uses_left > 0:
-		$HUD/AILabel.text += "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
+		
+	if current_level == 8:
+		$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: 2"
+		$HUD/ToggleLMoveButton.show()
+		$HUD/ToggleLMoveButton.button_pressed = false
+		$HUD/ToggleLMoveButton.text = "L Hamlesi Kullan (1 Kaldı)"
+		$HUD/ToggleLMoveButton.disabled = false
+	else:
+		$HUD/ToggleLMoveButton.hide()
+		$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
+		if ai_ultimate_uses_left > 0:
+			$HUD/AILabel.text += "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
 	
 	if current_level == 1:
 		var rows = [1, 3, 5, 7]
@@ -264,7 +320,42 @@ func create_board():
 		
 		for pos in coords:
 			spawn_stone(int(pos.x), int(pos.y), start_x + pos.y * 60, start_y + pos.x * 60)
-				
+			
+	elif current_level == 8:
+		# Level 8 (Kısım 2 - Level 1): Yelkenci (Çapraz Harita) - 56 Taş (Duble)
+		var start_y = -100 # Shifted up slightly to center the double height
+		var start_x = 0
+		var base_coords = [
+			# Center column (c = 0)
+			Vector2(-1, 0), Vector2(0, 0), Vector2(1, 0),
+			
+			# Left side
+			Vector2(0, -1), # c = -1
+			Vector2(-1, -2), Vector2(0, -2), Vector2(1, -2), # c = -2
+			Vector2(-2, -3), Vector2(-1, -3), Vector2(0, -3), Vector2(1, -3), Vector2(2, -3), # c = -3
+			Vector2(-1, -4), Vector2(0, -4), Vector2(1, -4), # c = -4
+			Vector2(0, -5), # c = -5
+			
+			# Right side
+			Vector2(0, 1), # c = 1
+			Vector2(-1, 2), Vector2(0, 2), Vector2(1, 2), # c = 2
+			Vector2(-2, 3), Vector2(-1, 3), Vector2(0, 3), Vector2(1, 3), Vector2(2, 3), # c = 3
+			Vector2(-1, 4), Vector2(0, 4), Vector2(1, 4), # c = 4
+			Vector2(0, 5) # c = 5
+		]
+		
+		var coords = []
+		for pos in base_coords:
+			if not coords.has(pos):
+				coords.append(pos)
+			
+			var bottom_pos = pos + Vector2(4, 0)
+			if not coords.has(bottom_pos):
+				coords.append(bottom_pos)
+		
+		for pos in coords:
+			spawn_stone(int(pos.x), int(pos.y), start_x + pos.y * 50, start_y + pos.x * 50)
+			
 	generate_all_move_masks()
 
 func spawn_stone(r, c, x, y):
@@ -305,83 +396,99 @@ func build_adj_masks():
 
 func generate_all_move_masks():
 	normal_move_masks.clear()
+	ai_diagonal_move_masks.clear()
 	special_moves.clear()
 	bomb_move_masks.clear()
 	bomb_stone_ids.clear()
 	
-	var row_groups = {}
-	var col_groups = {}
-	for i in range(all_stones.size()):
-		var s = all_stones[i]
-		if not row_groups.has(s.row_index): row_groups[s.row_index] = []
-		row_groups[s.row_index].append(s)
-		if not col_groups.has(s.col_index): col_groups[s.col_index] = []
-		col_groups[s.col_index].append(s)
+	# Normal segmentler (Düz ve Çapraz)
+	var normal_dirs = [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1)]
 		
-	# Yatay segmentler
-	for r in row_groups.values():
-		r.sort_custom(func(a, b): return a.col_index < b.col_index)
-		for start in range(r.size()):
-			for end in range(start, r.size()):
-				var is_contig = true
-				for i in range(start, end):
-					if r[i+1].col_index - r[i].col_index != 1:
-						is_contig = false
-						break
-				if is_contig:
-					var mask = 0
-					for i in range(start, end + 1):
-						mask |= (1 << all_stones.find(r[i]))
+	for s in all_stones:
+		var s_idx = all_stones.find(s)
+		for d in normal_dirs:
+			var current_seg = [s]
+			var mask = (1 << s_idx)
+			if not normal_move_masks.has(mask): normal_move_masks.append(mask)
+				
+			var r = s.row_index
+			var c = s.col_index
+			while true:
+				r += int(d.x)
+				c += int(d.y)
+				var next_s = get_stone_at_full(r, c)
+				if next_s:
+					current_seg.append(next_s)
+					mask |= (1 << all_stones.find(next_s))
 					if not normal_move_masks.has(mask): normal_move_masks.append(mask)
+				else:
+					break
 					
-	# Dikey segmentler
-	for c in col_groups.values():
-		c.sort_custom(func(a, b): return a.row_index < b.row_index)
-		for start in range(c.size()):
-			for end in range(start, c.size()):
-				var is_contig = true
-				for i in range(start, end):
-					if c[i+1].row_index - c[i].row_index != 1:
-						is_contig = false
+	if current_level == 8:
+		var diag_dirs = [Vector2(1,1), Vector2(-1,-1), Vector2(1,-1), Vector2(-1,1)]
+		for s in all_stones:
+			var s_idx = all_stones.find(s)
+			for d in diag_dirs:
+				var current_seg = [s]
+				var mask = (1 << s_idx)
+				var r = s.row_index
+				var c = s.col_index
+				while true:
+					r += int(d.x)
+					c += int(d.y)
+					var next_s = get_stone_at_full(r, c)
+					if next_s:
+						current_seg.append(next_s)
+						mask |= (1 << all_stones.find(next_s))
+						if not ai_diagonal_move_masks.has(mask): ai_diagonal_move_masks.append(mask)
+					else:
 						break
-				if is_contig:
-					var mask = 0
-					for i in range(start, end + 1):
-						mask |= (1 << all_stones.find(c[i]))
-					if not normal_move_masks.has(mask): normal_move_masks.append(mask)
 					
 	# L şekli segmentler
+	var ortho_pairs = [
+		[Vector2(1,0), Vector2(0,1)], [Vector2(1,0), Vector2(0,-1)],
+		[Vector2(-1,0), Vector2(0,1)], [Vector2(-1,0), Vector2(0,-1)]
+	]
+	if current_level == 8:
+		# L move uses orthogonal components
+		ortho_pairs = [
+			[Vector2(1,0), Vector2(0,1)], [Vector2(1,0), Vector2(0,-1)],
+			[Vector2(-1,0), Vector2(0,1)], [Vector2(-1,0), Vector2(0,-1)]
+		]
+		
 	for corner in all_stones:
-		var row_segs = []
-		for dir in [-1, 1]:
-			var current_seg = [corner]
-			var col = corner.col_index
+		for pair in ortho_pairs:
+			var m1s = []
+			var m1 = (1 << all_stones.find(corner))
+			var r = corner.row_index
+			var c = corner.col_index
 			while true:
-				col += dir
-				var next_s = get_stone_at_full(corner.row_index, col)
+				r += int(pair[0].x)
+				c += int(pair[0].y)
+				var next_s = get_stone_at_full(r, c)
 				if next_s:
-					current_seg.append(next_s)
-					row_segs.append(current_seg.duplicate())
+					m1 |= (1 << all_stones.find(next_s))
+					m1s.append(m1)
 				else: break
-		var col_segs = []
-		for dir in [-1, 1]:
-			var current_seg = [corner]
-			var row = corner.row_index
+				
+			var m2s = []
+			var m2 = (1 << all_stones.find(corner))
+			r = corner.row_index
+			c = corner.col_index
 			while true:
-				row += dir
-				var next_s = get_stone_at_full(row, corner.col_index)
+				r += int(pair[1].x)
+				c += int(pair[1].y)
+				var next_s = get_stone_at_full(r, c)
 				if next_s:
-					current_seg.append(next_s)
-					col_segs.append(current_seg.duplicate())
+					m2 |= (1 << all_stones.find(next_s))
+					m2s.append(m2)
 				else: break
-					
-		for rs in row_segs:
-			for cs in col_segs:
-				var mask = 0
-				for s in rs: mask |= (1 << all_stones.find(s))
-				for s in cs: mask |= (1 << all_stones.find(s))
-				if not l_move_masks.has(mask) and not normal_move_masks.has(mask):
-					l_move_masks.append(mask)
+				
+			for mask1 in m1s:
+				for mask2 in m2s:
+					var final_mask = mask1 | mask2
+					if not l_move_masks.has(final_mask) and not normal_move_masks.has(final_mask):
+						l_move_masks.append(final_mask)
 
 	# Bomba Etki Alanları
 	for bomb in bomb_stones:
@@ -440,56 +547,52 @@ func _on_stone_clicked(row_index, col_index, stone):
 	if stone.is_selected:
 		stone.deselect()
 		selected_stones.erase(stone)
-		if selected_stones.size() <= 1:
-			selection_mode = "none"
+		validate_selection()
 		return
 		
 	if selected_stones.size() == 0 and bomb_stones.has(stone):
 		detonate_bomb(stone)
 		return
 		
-	var new_selected = selected_stones.duplicate()
-	new_selected.append(stone)
-	
-	if new_selected.size() == 1:
-		stone.select()
-		selected_stones.append(stone)
-		return
-		
-	var mode = selection_mode
-	if mode == "none":
-		if row_index == selected_stones[0].row_index: mode = "row"
-		elif col_index == selected_stones[0].col_index: mode = "col"
-		else: return
-
-	if mode == "row" and row_index != selected_stones[0].row_index: return
-	if mode == "col" and col_index != selected_stones[0].col_index: return
-		
-	if not is_contiguous(new_selected, mode):
-		print("Bitişik seçmelisiniz!")
-		return
-		
-	selection_mode = mode
 	stone.select()
 	selected_stones.append(stone)
+	validate_selection()
 
-func is_contiguous(stones_arr: Array, mode: String) -> bool:
-	if stones_arr.size() <= 1: return true
-	var indices = []
-	for s in stones_arr:
-		if mode == "row": indices.append(s.col_index)
-		else: indices.append(s.row_index)
-	indices.sort()
-	
-	var min_idx = indices[0]
-	var max_idx = indices[indices.size()-1]
-	
-	if max_idx - min_idx != indices.size() - 1:
-		return false
-	return true
+
+func validate_selection():
+	var mask = 0
+	for s in selected_stones:
+		mask |= (1 << all_stones.find(s))
+		
+	var is_valid = false
+	if mask == 0:
+		is_valid = false
+	elif normal_move_masks.has(mask):
+		is_valid = true
+	elif current_level == 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
+		if l_move_masks.has(mask):
+			is_valid = true
+			
+	$EndTurnButton.disabled = not is_valid
+	if mask > 0 and not is_valid:
+		$EndTurnButton.text = "Geçersiz Seçim!"
+	else:
+		$EndTurnButton.text = "Turu Bitir"
 
 func end_turn():
 	if selected_stones.size() == 0: return
+	
+	var mask = 0
+	for s in selected_stones:
+		mask |= (1 << all_stones.find(s))
+		
+	if current_level == 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
+		if l_move_masks.has(mask):
+			player_special_uses_left -= 1
+			$HUD/ToggleLMoveButton.set_pressed_no_signal(false)
+			$HUD/ToggleLMoveButton.text = "L Hamlesi Kullan (" + str(player_special_uses_left) + " Kaldı)"
+			if player_special_uses_left == 0:
+				$HUD/ToggleLMoveButton.disabled = true
 		
 	var to_free = []
 	for stone in selected_stones:
@@ -560,7 +663,10 @@ func check_win_condition() -> bool:
 			$HUD/GameOverPanel/GameOverLabel.text = "KAYBETTİN!\n(Son Taşı Alan Kaybeder)"
 			$HUD/GameOverPanel/GameOverLabel.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
 		else:
-			$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nZürafa Kaybetti!"
+			if current_level == 8:
+				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nYelkenci Kaybetti!"
+			else:
+				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nZürafa Kaybetti!"
 			$HUD/GameOverPanel/GameOverLabel.add_theme_color_override("font_color", Color(0.2, 1.0, 0.2))
 		return true
 	return false
@@ -616,13 +722,17 @@ func play_enemy_turn():
 			ai_ultimate_uses_left -= 1
 			$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
 			print("Zürafa Boss 'Nihai Atak' özel yeteneğini kullandı!")
-		elif ai_special_uses_left > 0 and l_move_masks.has(best_move_mask):
+		elif ai_special_uses_left > 0 and (l_move_masks.has(best_move_mask) or ai_diagonal_move_masks.has(best_move_mask)):
 			ai_special_uses_left -= 1
-			if ai_ultimate_uses_left > 0:
-				$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
+			if current_level == 8:
+				$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: " + str(ai_special_uses_left)
+				print("Yelkenci 'Çapraz' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 			else:
-				$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
-			print("Zürafa Boss 'L Alma' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
+				if ai_ultimate_uses_left > 0:
+					$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
+				else:
+					$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
+				print("Zürafa Boss 'L Alma' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 		print("Yapay Zeka ", final_move.size(), " taşı hedef aldı. (Derinlik: ", max_depth, ")")
 		for s in final_move:
 			if is_instance_valid(s) and not s.is_queued_for_deletion():
@@ -667,8 +777,12 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			
 	var special_moves = []
 	if special_uses > 0:
-		for m in l_move_masks:
-			if (board_state & m) == m: special_moves.append(m)
+		if current_level == 8:
+			for m in ai_diagonal_move_masks:
+				if (board_state & m) == m: special_moves.append(m)
+		else:
+			for m in l_move_masks:
+				if (board_state & m) == m: special_moves.append(m)
 			
 	var ultimate_moves = []
 	if ultimate_uses > 0:
@@ -676,8 +790,8 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			if (board_state & m) == m: ultimate_moves.append(m)
 			
 	var all_moves = []
-	if current_level == 7:
-		# KESİN EMİR: Eğer Nihai Atak varsa, sadece Nihai Atakları düşün! L varsa sadece L'leri düşün!
+	if current_level == 7 or current_level == 8:
+		# KESİN EMİR: Eğer Nihai Atak varsa, sadece Nihai Atakları düşün! L (veya Çapraz) varsa sadece onları düşün!
 		if ultimate_uses > 0 and ultimate_moves.size() > 0:
 			all_moves = ultimate_moves.duplicate()
 		elif special_uses > 0 and special_moves.size() > 0:
@@ -744,12 +858,12 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 		# KOMUT 1: Sadece tekli taşlar kalıyorsa ve sayısı TEK ise kesin kazanırız.
 		var is_guaranteed_win = false
 		if big_piles == 0 and ones_count % 2 == 1:
-			if current_level != 7: return move
+			if current_level != 7 and current_level != 8: return move
 			else: is_guaranteed_win = true
 			
 		# KOMUT 2: Birden fazla büyük grup varsa ve Nim-Sum 0 ise kesin kazanırız. (Örn: [2, 2] bırakmak)
 		elif big_piles > 1 and nim_sum == 0:
-			if current_level != 7: return move
+			if current_level != 7 and current_level != 8: return move
 			else: is_guaranteed_win = true
 		# ------------------------------------
 		
@@ -764,10 +878,12 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			if is_ultimate_used: score += 0.5
 			elif is_special_used: score += 0.3
 			
-		# Kibir Mekaniği (Sadece Level 7): Boss gösteriş yapmak için mükemmel stratejiyi feda edip özelliklerini GÖZÜ KAPALI kullanır!
+		# Kibir Mekaniği (Level 7 ve Level 8): Boss gösteriş yapmak için mükemmel stratejiyi feda edip özelliklerini GÖZÜ KAPALI kullanır!
 		if current_level == 7:
 			if is_ultimate_used: score += 10.0 + randf() # Nihai Atağı kesin ve rastgele bir yere atar! (Oyuncuya kazanma şansı doğar)
 			elif is_special_used: score += 5.0 + randf() # L'leri kesin ve rastgele atar!
+		elif current_level == 8:
+			if is_special_used: score += 5.0 + randf() # Yelkenci çaprazları aktif olarak savurur! (Oyuncunun sinirini bozmak için)
 			
 		if score > best_score:
 			best_score = score
@@ -777,10 +893,10 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			
 		alpha = max(alpha, best_score)
 			
-	# Level 7 Yorgunluk Mekaniği: Boss o kadar şov yaptıktan sonra BİTKİN düşer! %40 ihtimalle mükemmel hamleyi göremez ve rastgele, saçma sapan bir hata yapar!
-	if current_level == 7 and special_uses == 0 and ultimate_uses == 0:
+	# Level 7 ve 8 Yorgunluk Mekaniği: Boss o kadar şov yaptıktan sonra BİTKİN düşer! %40 ihtimalle mükemmel hamleyi göremez ve rastgele, saçma sapan bir hata yapar!
+	if (current_level == 7 or current_level == 8) and special_uses == 0 and ultimate_uses == 0:
 		if randf() < 0.40:
-			print("Zürafa Boss YORULDU ve hata yaptı!")
+			print("Boss YORULDU ve hata yaptı!")
 			return all_moves[randi() % all_moves.size()]
 			
 	return best_moves[randi() % best_moves.size()]
