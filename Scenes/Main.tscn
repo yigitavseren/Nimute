@@ -29,7 +29,7 @@ theme_override_colors/font_color = Color(1, 0.8, 0.2, 1)
 theme_override_font_sizes/font_size = 24
 text = "Zürafa Boss 'L' Hakkı: 1"
 
-[node name="FastForwardButton" type="CheckButton" parent="HUD" unique_id=4003612009]
+[node name="FastForwardButton" type="CheckButton" parent="HUD" unique_id=-291355287]
 layout_mode = 0
 offset_left = 1000.0
 offset_top = 20.0
@@ -97,7 +97,7 @@ layout_mode = 0
 offset_left = 440.0
 offset_top = 180.0
 offset_right = 840.0
-offset_bottom = 632.0
+offset_bottom = 690.0
 
 [node name="PartTitle" type="Label" parent="LevelSelectUI/Panel" unique_id=8496676]
 layout_mode = 0
@@ -152,3 +152,12 @@ offset_right = 300.0
 offset_bottom = 430.0
 theme_override_font_sizes/font_size = 24
 text = "Level 5: Sağlam Taş"
+
+[node name="Level6Button" type="Button" parent="LevelSelectUI/Panel" unique_id=987654321]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 450.0
+offset_right = 300.0
+offset_bottom = 500.0
+theme_override_font_sizes/font_size = 24
+text = "Level 6: Gerçek Zürafa"

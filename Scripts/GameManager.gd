@@ -30,6 +30,7 @@ func _ready():
 	$LevelSelectUI/Panel/Level3Button.pressed.connect(func(): start_level(3))
 	$LevelSelectUI/Panel/Level4Button.pressed.connect(func(): start_level(4))
 	$LevelSelectUI/Panel/Level5Button.pressed.connect(func(): start_level(5))
+	$LevelSelectUI/Panel/Level6Button.pressed.connect(func(): start_level(6))
 	show_main_menu()
 
 func show_main_menu():
@@ -61,7 +62,7 @@ func create_board():
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	
-	if current_level == 4 or current_level == 5: ai_special_uses_left = 2
+	if current_level >= 4: ai_special_uses_left = 2
 	else: ai_special_uses_left = 1
 	$Board.scale = Vector2(1.0, 1.0)
 	$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
@@ -146,6 +147,34 @@ func create_board():
 				s.position.x += 40 # Visually center the bottom stone at col 4.5
 			if armors.has(pos):
 				make_armored(s)
+				
+	elif current_level == 6:
+		var start_y = -300
+		var start_x = -270
+		var coords = [
+			Vector2(0, 3), Vector2(1, 1), Vector2(1, 2), Vector2(1, 3),
+			Vector2(2, 3), Vector2(3, 3), Vector2(4, 3), Vector2(5, 3),
+			Vector2(6, 3), Vector2(6, 4), Vector2(6, 5), Vector2(6, 6), Vector2(6, 7), Vector2(6, 8),
+			Vector2(7, 3), Vector2(7, 4), Vector2(7, 5), Vector2(7, 6), Vector2(7, 7), Vector2(7, 8),
+			Vector2(8, 3), Vector2(9, 3), Vector2(10, 3),
+			Vector2(8, 8), Vector2(9, 8), Vector2(10, 8)
+		]
+		var armors = [
+			Vector2(6, 3), Vector2(6, 4), Vector2(6, 5), Vector2(6, 6), Vector2(6, 7), Vector2(6, 8),
+			Vector2(7, 3), Vector2(7, 4), Vector2(7, 5), Vector2(7, 7), Vector2(7, 8)
+		]
+		var bombs = [
+			Vector2(1, 3), # Head
+			Vector2(7, 6), # Body Bottom
+			Vector2(10, 3), # Front Hoof
+			Vector2(10, 8) # Back Hoof
+		]
+		for pos in coords:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.y * 60, start_y + pos.x * 60)
+			if armors.has(pos):
+				make_armored(s)
+			if bombs.has(pos):
+				make_bomb(s)
 				
 	generate_all_move_masks()
 
@@ -393,8 +422,15 @@ func detonate_bomb(bomb):
 	await get_tree().create_timer(0.4).timeout
 	
 	for s in to_destroy:
-		# Bomba direkt yokediyor, zırhı sormuyor.
-		if is_instance_valid(s):
+		if not is_instance_valid(s): continue
+		
+		var s_id = all_stones.find(s)
+		if s != bomb and (current_armor_state & (1 << s_id)) != 0:
+			current_armor_state &= ~(1 << s_id)
+			s.base_color = Color(1, 1, 1) # Zırh kırıldı
+			s.modulate = Color(1, 1, 1)
+			s.deselect()
+		else:
 			s.queue_free()
 			
 	await get_tree().process_frame
@@ -530,6 +566,53 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 		
 		var is_special_used = special_uses > 0 and special_moves.has(move)
 		var new_special_uses = special_uses - 1 if is_special_used else special_uses
+		
+		# --- KESİN KAZANÇ KOMUTLARI OVERRIDE ---
+		var remaining_check = new_state
+		var sizes = []
+		while remaining_check > 0:
+			var i = 0
+			while (remaining_check & (1 << i)) == 0: i += 1
+			var comp_mask = (1 << i)
+			var frontier = comp_mask
+			while frontier > 0:
+				var next_frontier = 0
+				var temp = frontier
+				while temp > 0:
+					var bit = 0
+					while (temp & (1 << bit)) == 0: bit += 1
+					next_frontier |= (adj_masks[bit] & remaining_check)
+					temp &= ~(1 << bit)
+				next_frontier &= ~comp_mask
+				comp_mask |= next_frontier
+				frontier = next_frontier
+			var v = 0
+			var temp_comp = comp_mask
+			while temp_comp > 0:
+				var bit = 0
+				while (temp_comp & (1 << bit)) == 0: bit += 1
+				v += 1
+				if (new_armor & (1 << bit)) != 0: v += 1
+				temp_comp &= ~(1 << bit)
+			sizes.append(v)
+			remaining_check &= ~comp_mask
+			
+		var big_piles = 0
+		var ones_count = 0
+		var nim_sum = 0
+		for s in sizes:
+			nim_sum ^= s
+			if s > 1: big_piles += 1
+			else: ones_count += 1
+			
+		# KOMUT 1: Sadece tekli taşlar kalıyorsa ve sayısı TEK ise kesin kazanırız.
+		if big_piles == 0 and ones_count % 2 == 1:
+			return move
+			
+		# KOMUT 2: Birden fazla büyük grup varsa ve Nim-Sum 0 ise kesin kazanırız. (Örn: [2, 2] bırakmak)
+		if big_piles > 1 and nim_sum == 0:
+			return move
+		# ------------------------------------
 		
 		var score = minimax(new_state, new_armor, max_depth - 1, alpha, beta, false, new_special_uses)
 		

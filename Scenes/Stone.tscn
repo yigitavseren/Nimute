@@ -4,15 +4,15 @@
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
 bg_color = Color(0.2, 0.2, 0.2, 1)
-corner_radius_top_left = 30
-corner_radius_top_right = 30
-corner_radius_bottom_right = 30
-corner_radius_bottom_left = 30
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
 
 [node name="Stone" type="Button"]
-custom_minimum_size = Vector2(60, 60)
-offset_right = 60.0
-offset_bottom = 60.0
+custom_minimum_size = Vector2(44, 44)
+offset_right = 44.0
+offset_bottom = 44.0
 theme_override_styles/normal = SubResource("StyleBoxFlat_1")
 theme_override_styles/hover = SubResource("StyleBoxFlat_1")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_1")
