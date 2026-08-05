@@ -6,10 +6,12 @@ var selected_stones = []
 var current_turn = "Player"
 var selection_mode = "none"
 var ai_special_uses_left = 0
+var ai_ultimate_uses_left = 0
 var current_level = 1
 
 var normal_move_masks = []
 var l_move_masks = []
+var ultimate_move_masks = []
 var memo = {}
 
 var special_moves = []
@@ -25,12 +27,67 @@ func _ready():
 	$EndTurnButton.pressed.connect(end_turn)
 	$MainMenuButton.pressed.connect(show_main_menu)
 	$HUD/FastForwardButton.toggled.connect(func(pressed): Engine.time_scale = 4.0 if pressed else 1.0)
-	$LevelSelectUI/Panel/Level1Button.pressed.connect(func(): start_level(1))
-	$LevelSelectUI/Panel/Level2Button.pressed.connect(func(): start_level(2))
-	$LevelSelectUI/Panel/Level3Button.pressed.connect(func(): start_level(3))
-	$LevelSelectUI/Panel/Level4Button.pressed.connect(func(): start_level(4))
-	$LevelSelectUI/Panel/Level5Button.pressed.connect(func(): start_level(5))
-	$LevelSelectUI/Panel/Level6Button.pressed.connect(func(): start_level(6))
+	$LevelSelectUI/Panel/PartTitle.pressed.connect(func():
+		$LevelSelectUI/Panel/LevelButtons.show()
+		$LevelSelectUI/Panel/PartTitle.hide()
+	)
+	$LevelSelectUI/Panel/LevelButtons/BackButton.pressed.connect(func():
+		$LevelSelectUI/Panel/LevelButtons.hide()
+		$LevelSelectUI/Panel/PartTitle.show()
+	)
+	$LevelSelectUI/Panel/LevelButtons/Level1Button.pressed.connect(func(): start_level(1))
+	$LevelSelectUI/Panel/LevelButtons/Level2Button.pressed.connect(func(): start_level(2))
+	$LevelSelectUI/Panel/LevelButtons/Level3Button.pressed.connect(func(): start_level(3))
+	$LevelSelectUI/Panel/LevelButtons/Level4Button.pressed.connect(func(): start_level(4))
+	$LevelSelectUI/Panel/LevelButtons/Level5Button.pressed.connect(func(): start_level(5))
+	$LevelSelectUI/Panel/LevelButtons/Level6Button.pressed.connect(func(): start_level(6))
+	$LevelSelectUI/Panel/LevelButtons/Level7Button.pressed.connect(func(): start_level(7))
+	
+	# --- UI STYLING ---
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.12, 0.12, 0.15, 0.95)
+	panel_style.corner_radius_top_left = 15
+	panel_style.corner_radius_top_right = 15
+	panel_style.corner_radius_bottom_right = 15
+	panel_style.corner_radius_bottom_left = 15
+	panel_style.border_width_left = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.3, 0.3, 0.4)
+	$LevelSelectUI/Panel.add_theme_stylebox_override("panel", panel_style)
+	
+	var btn_normal = StyleBoxFlat.new()
+	btn_normal.bg_color = Color(0.2, 0.2, 0.25)
+	btn_normal.corner_radius_top_left = 8
+	btn_normal.corner_radius_top_right = 8
+	btn_normal.corner_radius_bottom_right = 8
+	btn_normal.corner_radius_bottom_left = 8
+	
+	var btn_hover = btn_normal.duplicate()
+	btn_hover.bg_color = Color(0.3, 0.3, 0.35)
+	
+	var title_normal = btn_normal.duplicate()
+	title_normal.bg_color = Color(0.7, 0.4, 0.1)
+	var title_hover = title_normal.duplicate()
+	title_hover.bg_color = Color(0.8, 0.5, 0.2)
+	
+	$LevelSelectUI/Panel/PartTitle.add_theme_stylebox_override("normal", title_normal)
+	$LevelSelectUI/Panel/PartTitle.add_theme_stylebox_override("hover", title_hover)
+	
+	for btn in $LevelSelectUI/Panel/LevelButtons.get_children():
+		if btn is Button:
+			btn.add_theme_stylebox_override("normal", btn_normal)
+			btn.add_theme_stylebox_override("hover", btn_hover)
+			
+	var back_normal = btn_normal.duplicate()
+	back_normal.bg_color = Color(0.6, 0.2, 0.2)
+	var back_hover = back_normal.duplicate()
+	back_hover.bg_color = Color(0.8, 0.3, 0.3)
+	$LevelSelectUI/Panel/LevelButtons/BackButton.add_theme_stylebox_override("normal", back_normal)
+	$LevelSelectUI/Panel/LevelButtons/BackButton.add_theme_stylebox_override("hover", back_hover)
+	# -----------------
+	
 	show_main_menu()
 
 func show_main_menu():
@@ -64,8 +121,17 @@ func create_board():
 	
 	if current_level >= 4: ai_special_uses_left = 2
 	else: ai_special_uses_left = 1
-	$Board.scale = Vector2(1.0, 1.0)
+	
+	if current_level == 7: ai_ultimate_uses_left = 1
+	else: ai_ultimate_uses_left = 0
+	
+	if current_level == 7:
+		$Board.scale = Vector2(0.85, 0.85)
+	else:
+		$Board.scale = Vector2(1.0, 1.0)
 	$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
+	if ai_ultimate_uses_left > 0:
+		$HUD/AILabel.text += "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
 	
 	if current_level == 1:
 		var rows = [1, 3, 5, 7]
@@ -175,6 +241,29 @@ func create_board():
 				make_armored(s)
 			if bombs.has(pos):
 				make_bomb(s)
+				
+	elif current_level == 7:
+		var start_y = -270
+		var start_x = -450
+		var coords = []
+		for c in range(4, 16): coords.append(Vector2(0, c))
+		for r in range(1, 3): coords.append(Vector2(r, 15))
+		for c in range(9, 16): coords.append(Vector2(3, c))
+		for r in range(4, 6): coords.append(Vector2(r, 9))
+		for c in range(9, 13): coords.append(Vector2(6, c))
+		for r in range(7, 9): coords.append(Vector2(r, 12))
+		for c in range(5, 13): coords.append(Vector2(9, c))
+		
+		for c in range(0, 4): coords.append(Vector2(2, c))
+		for r in range(3, 5):
+			coords.append(Vector2(r, 0))
+			coords.append(Vector2(r, 3))
+		for c in range(0, 4): coords.append(Vector2(5, c))
+		
+		for c in range(4, 9): coords.append(Vector2(4, c))
+		
+		for pos in coords:
+			spawn_stone(int(pos.x), int(pos.y), start_x + pos.y * 60, start_y + pos.x * 60)
 				
 	generate_all_move_masks()
 
@@ -318,6 +407,26 @@ func generate_all_move_masks():
 	l_move_masks.sort_custom(func(a, b): return count_bits.call(a) > count_bits.call(b))
 	
 	build_adj_masks()
+	if current_level == 7:
+		build_ultimate_move_masks()
+
+func build_ultimate_move_masks():
+	ultimate_move_masks.clear()
+	var seen = {}
+	for i in range(all_stones.size()):
+		_dfs_ultimate(i, 1 << i, seen)
+	for mask in seen.keys():
+		if not normal_move_masks.has(mask) and not l_move_masks.has(mask):
+			ultimate_move_masks.append(mask)
+
+func _dfs_ultimate(curr: int, mask: int, seen: Dictionary):
+	if not seen.has(mask):
+		seen[mask] = true
+	var adj = adj_masks[curr]
+	for next_node in range(all_stones.size()):
+		if (adj & (1 << next_node)) != 0:
+			if (mask & (1 << next_node)) == 0:
+				_dfs_ultimate(next_node, mask | (1 << next_node), seen)
 
 func get_stone_at_full(r: int, c: int):
 	for s in all_stones:
@@ -476,7 +585,7 @@ func play_enemy_turn():
 	elif stones_left <= 18: max_depth = 8
 	
 	memo.clear()
-	var best_move_mask = get_best_move_mask(current_board_state, current_armor_state, max_depth, ai_special_uses_left)
+	var best_move_mask = get_best_move_mask(current_board_state, current_armor_state, max_depth, ai_special_uses_left, ai_ultimate_uses_left)
 	
 	if best_move_mask == 0:
 		print("Yapay Zeka hamle bulamadı!")
@@ -503,9 +612,16 @@ func play_enemy_turn():
 			if is_instance_valid(s): s.modulate = Color(1, 0.2, 0.2)
 		await get_tree().create_timer(0.4).timeout
 	else:
-		if ai_special_uses_left > 0 and l_move_masks.has(best_move_mask):
+		if ai_ultimate_uses_left > 0 and ultimate_move_masks.has(best_move_mask):
+			ai_ultimate_uses_left -= 1
+			$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
+			print("Zürafa Boss 'Nihai Atak' özel yeteneğini kullandı!")
+		elif ai_special_uses_left > 0 and l_move_masks.has(best_move_mask):
 			ai_special_uses_left -= 1
-			$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
+			if ai_ultimate_uses_left > 0:
+				$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
+			else:
+				$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
 			print("Zürafa Boss 'L Alma' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 		print("Yapay Zeka ", final_move.size(), " taşı hedef aldı. (Derinlik: ", max_depth, ")")
 		for s in final_move:
@@ -533,7 +649,7 @@ func play_enemy_turn():
 
 var search_node_count: int = 0
 
-func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, special_uses: int) -> int:
+func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, special_uses: int, ultimate_uses: int) -> int:
 	search_node_count = 0
 	var best_score: float = -9999.0
 	var best_moves = []
@@ -554,8 +670,25 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 		for m in l_move_masks:
 			if (board_state & m) == m: special_moves.append(m)
 			
-	var all_moves = available_moves.duplicate()
-	all_moves.append_array(special_moves)
+	var ultimate_moves = []
+	if ultimate_uses > 0:
+		for m in ultimate_move_masks:
+			if (board_state & m) == m: ultimate_moves.append(m)
+			
+	var all_moves = []
+	if current_level == 7:
+		# KESİN EMİR: Eğer Nihai Atak varsa, sadece Nihai Atakları düşün! L varsa sadece L'leri düşün!
+		if ultimate_uses > 0 and ultimate_moves.size() > 0:
+			all_moves = ultimate_moves.duplicate()
+		elif special_uses > 0 and special_moves.size() > 0:
+			all_moves = special_moves.duplicate()
+		else:
+			all_moves = available_moves.duplicate()
+	else:
+		all_moves = available_moves.duplicate()
+		all_moves.append_array(special_moves)
+		all_moves.append_array(ultimate_moves)
+		
 	if all_moves.size() == 0: return 0
 	
 	for move in all_moves:
@@ -566,6 +699,9 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 		
 		var is_special_used = special_uses > 0 and special_moves.has(move)
 		var new_special_uses = special_uses - 1 if is_special_used else special_uses
+		
+		var is_ultimate_used = ultimate_uses > 0 and ultimate_moves.has(move)
+		var new_ultimate_uses = ultimate_uses - 1 if is_ultimate_used else ultimate_uses
 		
 		# --- KESİN KAZANÇ KOMUTLARI OVERRIDE ---
 		var remaining_check = new_state
@@ -606,16 +742,33 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			else: ones_count += 1
 			
 		# KOMUT 1: Sadece tekli taşlar kalıyorsa ve sayısı TEK ise kesin kazanırız.
+		var is_guaranteed_win = false
 		if big_piles == 0 and ones_count % 2 == 1:
-			return move
+			if current_level != 7: return move
+			else: is_guaranteed_win = true
 			
 		# KOMUT 2: Birden fazla büyük grup varsa ve Nim-Sum 0 ise kesin kazanırız. (Örn: [2, 2] bırakmak)
-		if big_piles > 1 and nim_sum == 0:
-			return move
+		elif big_piles > 1 and nim_sum == 0:
+			if current_level != 7: return move
+			else: is_guaranteed_win = true
 		# ------------------------------------
 		
-		var score = minimax(new_state, new_armor, max_depth - 1, alpha, beta, false, new_special_uses)
+		var score = 0.0
+		if is_guaranteed_win:
+			score = 0.8
+		else:
+			score = minimax(new_state, new_armor, max_depth - 1, alpha, beta, false, new_special_uses, new_ultimate_uses)
 		
+		# Boss Desperation Mechanic: Eğer yapay zeka yenildiğini anlıyorsa, özel güçlerini harcamayı tercih eder!
+		if score < -0.5:
+			if is_ultimate_used: score += 0.5
+			elif is_special_used: score += 0.3
+			
+		# Kibir Mekaniği (Sadece Level 7): Boss gösteriş yapmak için mükemmel stratejiyi feda edip özelliklerini GÖZÜ KAPALI kullanır!
+		if current_level == 7:
+			if is_ultimate_used: score += 10.0 + randf() # Nihai Atağı kesin ve rastgele bir yere atar! (Oyuncuya kazanma şansı doğar)
+			elif is_special_used: score += 5.0 + randf() # L'leri kesin ve rastgele atar!
+			
 		if score > best_score:
 			best_score = score
 			best_moves = [move]
@@ -624,9 +777,15 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			
 		alpha = max(alpha, best_score)
 			
+	# Level 7 Yorgunluk Mekaniği: Boss o kadar şov yaptıktan sonra BİTKİN düşer! %40 ihtimalle mükemmel hamleyi göremez ve rastgele, saçma sapan bir hata yapar!
+	if current_level == 7 and special_uses == 0 and ultimate_uses == 0:
+		if randf() < 0.40:
+			print("Zürafa Boss YORULDU ve hata yaptı!")
+			return all_moves[randi() % all_moves.size()]
+			
 	return best_moves[randi() % best_moves.size()]
 
-func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta: float, is_ai_turn: bool, special_uses: int) -> float:
+func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta: float, is_ai_turn: bool, special_uses: int, ultimate_uses: int) -> float:
 	var original_alpha = alpha
 	var original_beta = beta
 	search_node_count += 1
@@ -674,12 +833,12 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			score_val = 0.8 if nim_sum != 0 else -0.8
 			
 		var ai_perspective = score_val if is_ai_turn else -score_val
-		ai_perspective += 0.05 * special_uses
-		
-		var l_shape_count = 0
-		for m in l_move_masks:
-			if (board_state & m) == m: l_shape_count += 1
-		ai_perspective += 0.02 * l_shape_count
+		if current_level == 7:
+			ai_perspective -= 0.05 * special_uses
+			ai_perspective -= 0.05 * ultimate_uses
+		else:
+			ai_perspective += 0.001 * special_uses
+			ai_perspective += 0.001 * ultimate_uses
 		
 		var stones_count = 0
 		var temp_rem = board_state
@@ -691,7 +850,7 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 		ai_perspective += randf_range(-0.0001, 0.0001)
 		return ai_perspective
 		
-	var key = board_state | (armor_state << 35) | ((1 if is_ai_turn else 0) << 60) | (special_uses << 61)
+	var key = board_state | (armor_state << 35) | ((1 if is_ai_turn else 0) << 60) | (special_uses << 61) | (ultimate_uses << 63)
 	if memo.has(key):
 		var stored = memo[key]
 		if stored.depth >= depth:
@@ -714,8 +873,14 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 		for m in l_move_masks:
 			if (board_state & m) == m: special_moves.append(m)
 			
+	var ultimate_moves = []
+	if is_ai_turn and ultimate_uses > 0:
+		for m in ultimate_move_masks:
+			if (board_state & m) == m: ultimate_moves.append(m)
+			
 	var all_moves = available_moves.duplicate()
 	all_moves.append_array(special_moves)
+	all_moves.append_array(ultimate_moves)
 	
 	if is_ai_turn:
 		var max_eval: float = -9999.0
@@ -727,7 +892,10 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			
 			var is_special_used = special_uses > 0 and special_moves.has(move)
 			var new_special_uses = special_uses - 1 if is_special_used else special_uses
-			var eval = minimax(new_state, new_armor, depth - 1, alpha, beta, false, new_special_uses)
+			var is_ultimate_used = ultimate_uses > 0 and ultimate_moves.has(move)
+			var new_ultimate_uses = ultimate_uses - 1 if is_ultimate_used else ultimate_uses
+			
+			var eval = minimax(new_state, new_armor, depth - 1, alpha, beta, false, new_special_uses, new_ultimate_uses)
 			max_eval = max(max_eval, eval)
 			alpha = max(alpha, eval)
 			if beta <= alpha:
@@ -745,7 +913,7 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			var new_state = board_state & ~destroyed
 			var new_armor = armor_state & ~hit_armored
 			
-			var eval = minimax(new_state, new_armor, depth - 1, alpha, beta, true, special_uses)
+			var eval = minimax(new_state, new_armor, depth - 1, alpha, beta, true, special_uses, ultimate_uses)
 			min_eval = min(min_eval, eval)
 			beta = min(beta, eval)
 			if beta <= alpha:

@@ -95,69 +95,91 @@ horizontal_alignment = 1
 [node name="Panel" type="Panel" parent="LevelSelectUI" unique_id=897071412]
 layout_mode = 0
 offset_left = 440.0
-offset_top = 180.0
+offset_top = 150.0
 offset_right = 840.0
-offset_bottom = 690.0
+offset_bottom = 600.0
 
-[node name="PartTitle" type="Label" parent="LevelSelectUI/Panel" unique_id=8496676]
+[node name="PartTitle" type="Button" parent="LevelSelectUI/Panel" unique_id=8496676]
 layout_mode = 0
-offset_top = 20.0
+offset_top = 10.0
 offset_right = 400.0
 offset_bottom = 70.0
 theme_override_font_sizes/font_size = 32
 text = "Kısım 1: Zürafa"
-horizontal_alignment = 1
 
-[node name="Level1Button" type="Button" parent="LevelSelectUI/Panel" unique_id=102443538]
+[node name="LevelButtons" type="Control" parent="LevelSelectUI/Panel"]
+visible = false
+layout_mode = 3
+anchors_preset = 0
+
+[node name="BackButton" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=999999999]
+layout_mode = 0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = 90.0
+offset_bottom = 50.0
+theme_override_font_sizes/font_size = 18
+text = "< Geri"
+
+[node name="Level1Button" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=102443538]
 layout_mode = 0
 offset_left = 100.0
-offset_top = 100.0
+offset_top = 60.0
 offset_right = 300.0
-offset_bottom = 150.0
+offset_bottom = 100.0
 theme_override_font_sizes/font_size = 24
 text = "Level 1: Klasik"
 
-[node name="Level2Button" type="Button" parent="LevelSelectUI/Panel" unique_id=1381098676]
+[node name="Level2Button" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=1381098676]
 layout_mode = 0
 offset_left = 100.0
-offset_top = 170.0
+offset_top = 110.0
 offset_right = 300.0
-offset_bottom = 220.0
+offset_bottom = 150.0
 theme_override_font_sizes/font_size = 24
 text = "Level 2: 5x5 Kare"
 
-[node name="Level3Button" type="Button" parent="LevelSelectUI/Panel" unique_id=716224562]
+[node name="Level3Button" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=716224562]
 layout_mode = 0
 offset_left = 100.0
-offset_top = 240.0
+offset_top = 160.0
 offset_right = 300.0
-offset_bottom = 290.0
+offset_bottom = 200.0
 theme_override_font_sizes/font_size = 24
 text = "Level 3: Bomba"
 
-[node name="Level4Button" type="Button" parent="LevelSelectUI/Panel" unique_id=2103612007]
+[node name="Level4Button" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=2103612007]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 210.0
+offset_right = 300.0
+offset_bottom = 250.0
+theme_override_font_sizes/font_size = 24
+text = "Level 4: İki Zürafa"
+
+[node name="Level5Button" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=-1191355288]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 260.0
+offset_right = 300.0
+offset_bottom = 300.0
+theme_override_font_sizes/font_size = 24
+text = "Level 5: Sağlam Taş"
+
+[node name="Level6Button" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=987654321]
 layout_mode = 0
 offset_left = 100.0
 offset_top = 310.0
 offset_right = 300.0
-offset_bottom = 360.0
-theme_override_font_sizes/font_size = 24
-text = "Level 4: İki Zürafa"
-
-[node name="Level5Button" type="Button" parent="LevelSelectUI/Panel" unique_id=-1191355288]
-layout_mode = 0
-offset_left = 100.0
-offset_top = 380.0
-offset_right = 300.0
-offset_bottom = 430.0
-theme_override_font_sizes/font_size = 24
-text = "Level 5: Sağlam Taş"
-
-[node name="Level6Button" type="Button" parent="LevelSelectUI/Panel" unique_id=987654321]
-layout_mode = 0
-offset_left = 100.0
-offset_top = 450.0
-offset_right = 300.0
-offset_bottom = 500.0
+offset_bottom = 350.0
 theme_override_font_sizes/font_size = 24
 text = "Level 6: Gerçek Zürafa"
+
+[node name="Level7Button" type="Button" parent="LevelSelectUI/Panel/LevelButtons" unique_id=987654322]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 360.0
+offset_right = 300.0
+offset_bottom = 400.0
+theme_override_font_sizes/font_size = 24
+text = "Level 7: Final"
