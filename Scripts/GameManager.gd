@@ -108,6 +108,18 @@ func _ready():
 		l13.size = Vector2(250, 40)
 		l13.pressed.connect(func(): start_level(13))
 		$LevelSelectUI/Panel/Part2LevelButtons.add_child(l13)
+		
+	if has_node("LevelSelectUI/Panel/Part2LevelButtons/Level14Button"):
+		get_node("LevelSelectUI/Panel/Part2LevelButtons/Level14Button").pressed.connect(func(): start_level(14))
+	else:
+		var l14 = Button.new()
+		l14.text = "Level 7: Yelkenli"
+		l14.name = "Level14Button"
+		l14.add_theme_font_size_override("font_size", 24)
+		l14.position = Vector2(100, 360)
+		l14.size = Vector2(250, 40)
+		l14.pressed.connect(func(): start_level(14))
+		$LevelSelectUI/Panel/Part2LevelButtons.add_child(l14)
 	
 	# Bütün level butonlarını ortala ve boyutlarını eşitle
 	var btn_w = 260
@@ -255,7 +267,7 @@ func create_board():
 	elif current_level < 4: ai_special_uses_left = 1
 	else: ai_special_uses_left = 2 
 	
-	if current_level == 7: ai_ultimate_uses_left = 1
+	if current_level == 7 or current_level == 14: ai_ultimate_uses_left = 1
 	else: ai_ultimate_uses_left = 0
 	
 	if current_level == 7 or current_level >= 8:
@@ -264,16 +276,22 @@ func create_board():
 		$Board.scale = Vector2(1.0, 1.0)
 		
 	if current_level >= 8:
-		$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: 2"
+		if current_level == 14:
+			$HUD/AILabel.text = "Düşman: Yelkenci Boss\nÇapraz Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
+		else:
+			$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: " + str(ai_special_uses_left)
 		$HUD/ToggleLMoveButton.show()
 		$HUD/ToggleLMoveButton.button_pressed = false
 		$HUD/ToggleLMoveButton.text = "L Hamlesi Kullan (1 Kaldı)"
 		$HUD/ToggleLMoveButton.disabled = false
 	else:
 		$HUD/ToggleLMoveButton.hide()
-		$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
-		if ai_ultimate_uses_left > 0:
-			$HUD/AILabel.text += "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
+		if current_level == 7:
+			$HUD/AILabel.text = "Düşman: GİRDAP Boss\nL Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
+		else:
+			$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
+			if ai_ultimate_uses_left > 0:
+				$HUD/AILabel.text += "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
 	
 	if current_level == 1:
 		var rows = [1, 3, 5, 7]
@@ -698,6 +716,66 @@ func create_board():
 			if l13_bomb.has(pos):
 				make_bomb(s)
 
+	elif current_level == 14:
+		var start_y = -10
+		var start_x = -150
+		var grid_size = 55
+		
+		var l14_white = []
+		var l14_armored = []
+		var l14_bomb = []
+		var l14_lily = []
+		
+		l14_white.append_array([
+			Vector2(0, -5), Vector2(0, -4), Vector2(0, -3), Vector2(0, -2), Vector2(0, -1), Vector2(0, 0), Vector2(0, 1),
+			Vector2(-4, -1), Vector2(-3, -1), Vector2(-2, 0), Vector2(-1, 0), Vector2(-1, 1),
+			Vector2(1, 0), Vector2(2, 0), Vector2(3, 0), Vector2(4, 0),
+			Vector2(1, 1), Vector2(2, 1), Vector2(3, 1), Vector2(4, 1),
+			Vector2(1, 2), Vector2(2, 2), Vector2(3, 2), Vector2(4, 2),
+			Vector2(7, -2), Vector2(8, -2), Vector2(9, -2), Vector2(8, -1),
+			Vector2(7, 1), Vector2(9, 1),
+			Vector2(6, 2), Vector2(7, 2), Vector2(8, 2), Vector2(9, 2),
+			Vector2(7, 3), Vector2(8, 3), Vector2(9, 3),
+			Vector2(-5, 1), Vector2(5, -1) # Piranhalar
+		])
+		
+		l14_armored.append_array([
+			Vector2(-1, -5), Vector2(-2, -4), Vector2(-3, -3), Vector2(-4, -2),
+			Vector2(-3, 0), Vector2(-2, 1),
+			Vector2(2, -1), Vector2(3, -1), Vector2(4, -1)
+		])
+		
+		l14_bomb.append_array([
+			Vector2(7, -3), Vector2(9, -3), Vector2(8, 0)
+		])
+		
+		l14_lily.append_array([
+			Vector2(-2, 2), Vector2(-1, 2), Vector2(0, 2)
+		])
+		
+		var all_c = []
+		all_c.append_array(l14_white)
+		all_c.append_array(l14_armored)
+		all_c.append_array(l14_lily)
+		all_c.append_array(l14_bomb)
+		
+		for pos in all_c:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			if l14_armored.has(pos):
+				make_armored(s)
+			if l14_lily.has(pos):
+				s.set_type("lily_pad")
+				lily_pad_ids.append(all_stones.find(s))
+			if l14_bomb.has(pos):
+				make_bomb(s)
+				
+		var center_lbs = [Vector2(2, 1), Vector2(4, 1), Vector2(7, 2)]
+		for pos in center_lbs:
+			var s = get_stone_at_full(int(pos.x), int(pos.y))
+			if s:
+				lifebuoy_ids.append(all_stones.find(s))
+				s.set_type("lifebuoy")
+
 	if current_level >= 11:
 		spawn_piranhas()
 		
@@ -714,6 +792,17 @@ func spawn_stone(r, c, x, y):
 	return stone
 
 func spawn_piranhas():
+	if current_level == 14:
+		var p1 = get_stone_at_full(-5, 1)
+		var p2 = get_stone_at_full(5, -1)
+		if p1:
+			piranha_ids.append(all_stones.find(p1))
+			p1.set_type("piranha")
+		if p2:
+			piranha_ids.append(all_stones.find(p2))
+			p2.set_type("piranha")
+		return
+		
 	var num_piranhas = 4 if current_level >= 13 else ((randi() % 2) + 1)
 	
 	var candidates = []
@@ -967,11 +1056,27 @@ func generate_all_move_masks():
 	l_move_masks.sort_custom(func(a, b): return count_bits.call(a) > count_bits.call(b))
 	
 	build_adj_masks()
-	if current_level == 7:
+	if current_level == 7 or current_level == 14:
 		build_ultimate_move_masks()
 
 func build_ultimate_move_masks():
 	ultimate_move_masks.clear()
+	
+	if current_level == 14:
+		# Girdap: 3x3 alanlar
+		for center_s in all_stones:
+			if is_instance_valid(center_s) and not center_s.is_queued_for_deletion():
+				var mask = 0
+				var center_r = center_s.row_index
+				var center_c = center_s.col_index
+				for s in all_stones:
+					if is_instance_valid(s) and not s.is_queued_for_deletion():
+						if abs(s.row_index - center_r) <= 1 and abs(s.col_index - center_c) <= 1:
+							mask |= (1 << all_stones.find(s))
+				if mask > 0 and not ultimate_move_masks.has(mask):
+					ultimate_move_masks.append(mask)
+		return
+		
 	var seen = {}
 	for i in range(all_stones.size()):
 		_dfs_ultimate(i, 1 << i, seen)
@@ -1159,11 +1264,15 @@ func play_enemy_turn():
 			current_board_state |= (1 << i)
 			stones_left += 1
 			
-	var max_depth = 10
+	var max_depth = 2
 	if stones_left <= 10: max_depth = 30
 	elif stones_left <= 12: max_depth = 20
 	elif stones_left <= 15: max_depth = 12
 	elif stones_left <= 18: max_depth = 8
+	elif stones_left <= 25: max_depth = 6
+	elif stones_left <= 35: max_depth = 5
+	elif stones_left <= 45: max_depth = 4
+	elif stones_left <= 55: max_depth = 3
 	
 	memo.clear()
 	var best_move_mask = get_best_move_mask(current_board_state, current_armor_state, max_depth, ai_special_uses_left, ai_ultimate_uses_left)
@@ -1186,6 +1295,9 @@ func play_enemy_turn():
 				is_bomb_detonation = true
 				break
 				
+	var ai_ultimate_uses_left_prev = ai_ultimate_uses_left
+	var ai_special_uses_left_prev = ai_special_uses_left
+				
 	if is_bomb_detonation:
 		print("Yapay Zeka BOMBA PATLATTI!")
 		for s in final_move:
@@ -1194,13 +1306,26 @@ func play_enemy_turn():
 	else:
 		if ai_ultimate_uses_left > 0 and ultimate_move_masks.has(best_move_mask):
 			ai_ultimate_uses_left -= 1
-			$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
-			print("Zürafa Boss 'Nihai Atak' özel yeteneğini kullandı!")
+			if current_level == 14:
+				$HUD/AILabel.text = "Düşman: Yelkenci Boss\nÇapraz Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
+				print("Yelkenci Boss 'Girdap' özel yeteneğini kullandı!")
+			elif current_level == 7:
+				$HUD/AILabel.text = "Düşman: GİRDAP Boss\nL Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
+				print("GİRDAP Boss özel yeteneğini kullandı!")
+			else:
+				$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
+				print("Zürafa Boss 'Nihai Atak' özel yeteneğini kullandı!")
 		elif ai_special_uses_left > 0 and (l_move_masks.has(best_move_mask) or ai_diagonal_move_masks.has(best_move_mask)):
 			ai_special_uses_left -= 1
-			if current_level >= 8:
+			if current_level == 14:
+				$HUD/AILabel.text = "Düşman: Yelkenci Boss\nÇapraz Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
+				print("Yelkenci Boss 'Çapraz' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
+			elif current_level >= 8:
 				$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: " + str(ai_special_uses_left)
 				print("Yelkenci 'Çapraz' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
+			elif current_level == 7:
+				$HUD/AILabel.text = "Düşman: GİRDAP Boss\nL Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
+				print("GİRDAP Boss 'L Alma' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 			else:
 				if ai_ultimate_uses_left > 0:
 					$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
@@ -1208,14 +1333,24 @@ func play_enemy_turn():
 					$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left)
 				print("Zürafa Boss 'L Alma' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 		print("Yapay Zeka ", final_move.size(), " taşı hedef aldı. (Derinlik: ", max_depth, ")")
+		
+		var fx_girdap = (current_level == 14 and ai_ultimate_uses_left_prev > ai_ultimate_uses_left)
+		var fx_capraz = (ai_special_uses_left_prev > ai_special_uses_left)
+		
 		for s in final_move:
 			if is_instance_valid(s) and not s.is_queued_for_deletion():
 				s.select()
+				if fx_girdap:
+					s.modulate = Color(0.1, 0.3, 0.9) # Girdap: Koyu Mavi
+				elif fx_capraz:
+					s.modulate = Color(0.9, 0.5, 0.1) # Çapraz: Turuncu
 				await get_tree().create_timer(0.3).timeout
+				
+	var is_girdap_fx = (current_level == 14 and ai_ultimate_uses_left_prev > ai_ultimate_uses_left)
 				
 	for s in final_move:
 		var s_id = all_stones.find(s)
-		if (current_armor_state & (1 << s_id)) != 0:
+		if not is_girdap_fx and (current_armor_state & (1 << s_id)) != 0:
 			current_armor_state &= ~(1 << s_id)
 			if is_instance_valid(s): 
 				s.set_type("normal")
@@ -1403,15 +1538,17 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 	if all_moves.size() == 0: return 0
 	
 	for move in all_moves:
-		var hit_armored = move & armor_state
-		var destroyed = move & ~armor_state
+		var is_ultimate_used = ultimate_uses > 0 and ultimate_moves.has(move)
+		var is_girdap_used = (current_level == 14 and is_ultimate_used)
+		
+		var hit_armored = 0 if is_girdap_used else (move & armor_state)
+		var destroyed = move if is_girdap_used else (move & ~armor_state)
 		var new_state = board_state & ~destroyed
 		var new_armor = armor_state & ~hit_armored
 		
 		var is_special_used = special_uses > 0 and special_moves.has(move)
 		var new_special_uses = special_uses - 1 if is_special_used else special_uses
 		
-		var is_ultimate_used = ultimate_uses > 0 and ultimate_moves.has(move)
 		var new_ultimate_uses = ultimate_uses - 1 if is_ultimate_used else ultimate_uses
 		
 		# --- KESİN KAZANÇ KOMUTLARI OVERRIDE ---
