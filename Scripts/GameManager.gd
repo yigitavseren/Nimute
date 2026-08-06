@@ -25,6 +25,8 @@ var armored_stone_ids = []
 var current_armor_state: int = 0
 var lily_pad_ids = []
 var lily_pad_queue = []
+var lifebuoy_ids = []
+var piranha_ids = []
 
 var player_special_uses_left: int = 0
 
@@ -69,6 +71,31 @@ func _ready():
 	
 	$LevelSelectUI/Panel/Part2LevelButtons/Level8Button.pressed.connect(func(): start_level(8))
 	$LevelSelectUI/Panel/Part2LevelButtons/Level9Button.pressed.connect(func(): start_level(9))
+	$LevelSelectUI/Panel/Part2LevelButtons/Level10Button.pressed.connect(func(): start_level(10))
+	
+	if has_node("LevelSelectUI/Panel/Part2LevelButtons/Level11Button"):
+		get_node("LevelSelectUI/Panel/Part2LevelButtons/Level11Button").pressed.connect(func(): start_level(11))
+	else:
+		var l11 = Button.new()
+		l11.text = "Level 4: Piranha"
+		l11.name = "Level11Button"
+		l11.add_theme_font_size_override("font_size", 24)
+		l11.position = Vector2(100, 210)
+		l11.size = Vector2(250, 40)
+		l11.pressed.connect(func(): start_level(11))
+		$LevelSelectUI/Panel/Part2LevelButtons.add_child(l11)
+		
+	if has_node("LevelSelectUI/Panel/Part2LevelButtons/Level12Button"):
+		get_node("LevelSelectUI/Panel/Part2LevelButtons/Level12Button").pressed.connect(func(): start_level(12))
+	else:
+		var l12 = Button.new()
+		l12.text = "Level 5: Deniz Sefası"
+		l12.name = "Level12Button"
+		l12.add_theme_font_size_override("font_size", 24)
+		l12.position = Vector2(100, 260)
+		l12.size = Vector2(250, 40)
+		l12.pressed.connect(func(): start_level(12))
+		$LevelSelectUI/Panel/Part2LevelButtons.add_child(l12)
 	
 	# --- UI STYLING ---
 	var panel_style = StyleBoxFlat.new()
@@ -166,14 +193,39 @@ func create_board():
 		if is_instance_valid(q.label_node): q.label_node.queue_free()
 	lily_pad_queue.clear()
 	lily_pad_ids.clear()
+	lifebuoy_ids.clear()
+	piranha_ids.clear()
 	selection_mode = "none"
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	
-	if current_level == 9:
+	if current_level == 9 or current_level >= 10:
 		$Background.color = Color(0.05, 0.4, 0.6) # Okyanus Mavisi
 	else:
 		$Background.color = Color(0.08, 0.08, 0.08) # Varsayılan koyu gri
+		
+	if has_node("HUD/PiranhaSign"):
+		get_node("HUD/PiranhaSign").queue_free()
+		
+	if current_level >= 11:
+		var sign_panel = PanelContainer.new()
+		sign_panel.name = "PiranhaSign"
+		sign_panel.position = Vector2(850, 60)
+		var s_style = StyleBoxFlat.new()
+		s_style.bg_color = Color(0.35, 0.2, 0.1)
+		s_style.border_width_left = 4
+		s_style.border_width_right = 4
+		s_style.border_width_top = 4
+		s_style.border_width_bottom = 4
+		s_style.border_color = Color(0.15, 0.08, 0.04)
+		sign_panel.add_theme_stylebox_override("panel", s_style)
+		var sign_lbl = Label.new()
+		sign_lbl.text = " DİKKAT! \n Bu sularda \n PİRANA \n çıkabilir! >:< "
+		sign_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sign_lbl.add_theme_font_size_override("font_size", 20)
+		sign_lbl.add_theme_color_override("font_color", Color(1, 0.8, 0.2))
+		sign_panel.add_child(sign_lbl)
+		$HUD.add_child(sign_panel)
 	
 	if current_level >= 8: player_special_uses_left = 1
 	else: player_special_uses_left = 0
@@ -407,18 +459,228 @@ func create_board():
 			elif lily_coords.has(pos):
 				lily_pad_ids.append(all_stones.size() - 1)
 				s.set_type("lily_pad")
+
+	elif current_level == 10:
+		var start_y = 0
+		var start_x = 0
+		var grid_size = 65
+		
+		var l10_armored = []
+		var l10_bomb = []
+		var l10_lily = []
+		var l10_lifebuoy = []
+		var l10_white = []
+		
+		# Sol Haç (Merkez: -4, 0)
+		l10_white.append_array([Vector2(-4, -2), Vector2(-4, -1)])
+		l10_white.append(Vector2(-5, 0))
+		l10_lifebuoy.append(Vector2(-4, 0))
+		l10_white.append(Vector2(-3, 0))
+		l10_armored.append_array([Vector2(-4, 1), Vector2(-4, 2), Vector2(-4, 3)])
+		
+		# Sağ Haç (Merkez: 4, 0)
+		l10_armored.append_array([Vector2(4, -3), Vector2(4, -2), Vector2(4, -1)])
+		l10_white.append(Vector2(3, 0))
+		l10_lifebuoy.append(Vector2(4, 0))
+		l10_white.append(Vector2(5, 0))
+		l10_white.append_array([Vector2(4, 1), Vector2(4, 2)])
+		
+		# Merkez Elmas
+		l10_lily.append(Vector2(0, -3))
+		l10_white.append_array([Vector2(-1, -2), Vector2(1, -2)])
+		l10_lily.append(Vector2(0, -2))
+		l10_white.append_array([Vector2(-2, -1), Vector2(-1, -1), Vector2(0, -1), Vector2(1, -1), Vector2(2, -1)])
+		
+		l10_lifebuoy.append(Vector2(-2, 0))
+		l10_white.append(Vector2(-1, 0))
+		l10_bomb.append(Vector2(0, 0))
+		l10_white.append(Vector2(1, 0))
+		l10_lifebuoy.append(Vector2(2, 0))
+		
+		l10_white.append_array([Vector2(-2, 1), Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1), Vector2(2, 1)])
+		l10_white.append_array([Vector2(-1, 2), Vector2(1, 2)])
+		l10_lily.append(Vector2(0, 2))
+		l10_lily.append(Vector2(0, 3))
+		
+		var all_c = []
+		all_c.append_array(l10_armored)
+		all_c.append_array(l10_bomb)
+		all_c.append_array(l10_lily)
+		all_c.append_array(l10_lifebuoy)
+		all_c.append_array(l10_white)
+		
+		for pos in all_c:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			if l10_bomb.has(pos):
+				make_bomb(s)
+			elif l10_armored.has(pos):
+				make_armored(s)
+			elif l10_lily.has(pos):
+				lily_pad_ids.append(all_stones.size() - 1)
+				s.set_type("lily_pad")
+			elif l10_lifebuoy.has(pos):
+				lifebuoy_ids.append(all_stones.size() - 1)
+				s.set_type("lifebuoy")
+
+	elif current_level == 11:
+		var start_y = 0
+		var start_x = 0
+		var grid_size = 65
+		
+		var l11_white = []
+		var l11_armored = []
+		var l11_lily = []
+		
+		# Center column
+		l11_white.append_array([Vector2(0, -1), Vector2(0, -2), Vector2(0, -3), Vector2(0, 0), Vector2(0, 1), Vector2(0, 2)])
+		l11_armored.append_array([Vector2(0, -4), Vector2(0, -5), Vector2(0, -6)])
+		l11_armored.append_array([Vector2(0, 3), Vector2(0, 4), Vector2(0, 5), Vector2(-1, 4), Vector2(1, 4)])
+		
+		# Left branch
+		l11_white.append_array([Vector2(-1, 0), Vector2(-2, 0), Vector2(-3, 0), Vector2(-3, -1), Vector2(-3, -2)])
+		l11_armored.append_array([Vector2(-3, -3), Vector2(-4, -3), Vector2(-4, -2)])
+		
+		# Right branch
+		l11_white.append_array([Vector2(1, 0), Vector2(2, 0), Vector2(3, 0), Vector2(3, -1), Vector2(3, -2)])
+		l11_armored.append_array([Vector2(3, -3), Vector2(4, -3), Vector2(4, -2)])
+		
+		# Lily pads
+		l11_lily.append_array([Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)])
+		
+		var all_c = []
+		all_c.append_array(l11_white)
+		all_c.append_array(l11_armored)
+		all_c.append_array(l11_lily)
+		
+		for pos in all_c:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			if l11_armored.has(pos):
+				make_armored(s)
+			elif l11_lily.has(pos):
+				lily_pad_ids.append(all_stones.size() - 1)
+				s.set_type("lily_pad")
+
+	elif current_level == 12:
+		var start_y = 0
+		var start_x = 0
+		var grid_size = 50
+		
+		var l12_white = []
+		var l12_armored = []
+		var l12_bomb = []
+		
+		# Sol Küme (Bomba ve Beyazlar) Merkez: (-7, 0)
+		l12_bomb.append(Vector2(-7, 0))
+		l12_white.append_array([Vector2(-7, -1), Vector2(-7, 1), Vector2(-8, 0), Vector2(-6, 0)])
+		
+		# Sağ Üst Küme (Tamamı Zırhlı) Merkez: (7, -4)
+		l12_armored.append_array([Vector2(7, -4), Vector2(7, -5), Vector2(7, -3), Vector2(6, -4), Vector2(8, -4)])
+		
+		# Sağ Alt Küme (Beyazlar ve Can Simidi) Merkez: (7, 4)
+		l12_white.append_array([Vector2(7, 4), Vector2(7, 3), Vector2(7, 5), Vector2(6, 4), Vector2(8, 4)])
+		# (6,4) ve (7,4) kırmızı çizgi (Can Simidi) -> döngüden sonra ayarlayacağız.
+		
+		# Merkez Şekil 
+		# Elmas Üst Kısım
+		l12_white.append_array([Vector2(0, -4), Vector2(-1, -3), Vector2(1, -3), Vector2(0, -2)])
+		
+		# İç Zırhlılar
+		l12_armored.append_array([Vector2(0, 0), Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)])
+		
+		# Sol Dikey Sütun (x = -2)
+		l12_white.append_array([Vector2(-2, -2), Vector2(-2, -1), Vector2(-2, 0), Vector2(-2, 1), Vector2(-2, 2), Vector2(-2, 3), Vector2(-2, 4)])
+		
+		# Sağ Dikey Sütun (x = 2)
+		l12_white.append_array([Vector2(2, -2), Vector2(2, -1), Vector2(2, 0), Vector2(2, 1), Vector2(2, 2), Vector2(2, 3), Vector2(2, 4)])
+		
+		# Sol Kanat
+		l12_white.append_array([Vector2(-3, -2), Vector2(-3, -3), Vector2(-4, -3)])
+		
+		# Sağ Kanat
+		l12_white.append_array([Vector2(3, -2), Vector2(3, -3), Vector2(4, -3)])
+		
+		var all_c = []
+		all_c.append_array(l12_white)
+		all_c.append_array(l12_armored)
+		all_c.append_array(l12_bomb)
+		
+		for pos in all_c:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			if l12_armored.has(pos):
+				make_armored(s)
+			elif l12_bomb.has(pos):
+				make_bomb(s)
+				
+		# Can simitlerini oluştur (ID bulmamız gerektiği için hepsi oluştuktan sonra)
+		# Sağ alt küme: (6, 4) ve (7, 4)
+		var lb1_s1 = get_stone_at_full(6, 4)
+		var lb1_s2 = get_stone_at_full(7, 4)
+		if lb1_s1 and lb1_s2:
+			lifebuoy_ids.append(all_stones.find(lb1_s1))
+			lifebuoy_ids.append(all_stones.find(lb1_s2))
+			lb1_s1.set_type("lifebuoy")
+			lb1_s2.set_type("lifebuoy")
 			
+		# Merkez Şekil Can Simitleri:
+		# Sol Üst: (-1, -1) ve (-2, -1)
+		# Sol Alt: (-1, 1) ve (-2, 1)
+		# Sağ Üst: (1, -1) ve (2, -1)
+		# Sağ Alt: (1, 1) ve (2, 1)
+		var lb_pairs = [
+			[Vector2(-1, -1), Vector2(-2, -1)],
+			[Vector2(-1, 1), Vector2(-2, 1)],
+			[Vector2(1, -1), Vector2(2, -1)],
+			[Vector2(1, 1), Vector2(2, 1)]
+		]
+		for pair in lb_pairs:
+			var s1 = get_stone_at_full(int(pair[0].x), int(pair[0].y))
+			var s2 = get_stone_at_full(int(pair[1].x), int(pair[1].y))
+			if s1 and s2:
+				lifebuoy_ids.append(all_stones.find(s1))
+				lifebuoy_ids.append(all_stones.find(s2))
+				s1.set_type("lifebuoy")
+				s2.set_type("lifebuoy")
+
+	if current_level >= 11:
+		spawn_piranhas()
+		
 	generate_all_move_masks()
 
 func spawn_stone(r, c, x, y):
 	var stone = stone_scene.instantiate()
+	stone.position = Vector2(x, y)
 	stone.row_index = r
 	stone.col_index = c
-	stone.position = Vector2(x, y)
 	stone.stone_clicked.connect(_on_stone_clicked)
 	$Board.add_child(stone)
 	all_stones.append(stone)
 	return stone
+
+func spawn_piranhas():
+	var num_piranhas = (randi() % 2) + 1 # 1 veya 2 tane çıksın
+	
+	var candidates = []
+	for i in range(all_stones.size()):
+		if bomb_stone_ids.has(i) or armored_stone_ids.has(i) or lifebuoy_ids.has(i) or lily_pad_ids.has(i):
+			continue
+			
+		var s = all_stones[i]
+		var neighbors = 0
+		for dir in [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1), Vector2(1,1), Vector2(1,-1), Vector2(-1,1), Vector2(-1,-1)]:
+			var neighbor = get_stone_at_full(s.row_index + int(dir.x), s.col_index + int(dir.y))
+			if neighbor and is_instance_valid(neighbor) and not neighbor.is_queued_for_deletion():
+				neighbors += 1
+		candidates.append({"index": i, "density": neighbors})
+		
+	candidates.sort_custom(func(a, b): return a.density > b.density)
+	
+	var top_candidates = candidates.slice(0, min(5, candidates.size()))
+	top_candidates.shuffle()
+	
+	for i in range(min(num_piranhas, top_candidates.size())):
+		var idx = top_candidates[i].index
+		piranha_ids.append(idx)
+		all_stones[idx].set_type("piranha")
 
 func make_bomb(stone):
 	bomb_stones.append(stone)
@@ -434,10 +696,16 @@ func build_adj_masks():
 	adj_masks.clear()
 	for i in range(all_stones.size()):
 		var mask = 0
+		if not is_instance_valid(all_stones[i]) or all_stones[i].is_queued_for_deletion():
+			adj_masks.append(0)
+			continue
+			
 		var r_i = all_stones[i].row_index
 		var c_i = all_stones[i].col_index
 		for j in range(all_stones.size()):
 			if i == j: continue
+			if not is_instance_valid(all_stones[j]) or all_stones[j].is_queued_for_deletion(): continue
+			
 			var r_j = all_stones[j].row_index
 			var c_j = all_stones[j].col_index
 			if (r_i == r_j and abs(c_i - c_j) == 1) or (c_i == c_j and abs(r_i - r_j) == 1):
@@ -446,6 +714,7 @@ func build_adj_masks():
 
 func advance_timers():
 	var still_waiting = []
+	var respawned_any = false
 	for lp in lily_pad_queue:
 		lp.turns_left -= 1
 		
@@ -455,22 +724,25 @@ func advance_timers():
 			
 		if lp.turns_left <= 0:
 			respawn_lily_pad(lp)
+			respawned_any = true
 			if is_instance_valid(lp.label_node): lp.label_node.queue_free()
 		else:
 			still_waiting.append(lp)
 	lily_pad_queue = still_waiting
+	if respawned_any:
+		generate_all_move_masks()
 
 func has_non_lily_pads() -> bool:
 	for i in range(all_stones.size()):
 		var s = all_stones[i]
 		if is_instance_valid(s) and not s.is_queued_for_deletion():
-			if not lily_pad_ids.has(i):
+			if not lily_pad_ids.has(i) and not piranha_ids.has(i):
 				return true
 	return false
 
-func destroy_stone(stone):
+func destroy_stone(stone, permanent=false):
 	var s_idx = all_stones.find(stone)
-	if lily_pad_ids.has(s_idx) and has_non_lily_pads():
+	if lily_pad_ids.has(s_idx) and has_non_lily_pads() and not permanent:
 		var lbl = Label.new()
 		lbl.text = "2"
 		lbl.position = stone.position - Vector2(10, 10)
@@ -508,7 +780,10 @@ func generate_all_move_masks():
 	var normal_dirs = [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1)]
 		
 	for s in all_stones:
+		if not is_instance_valid(s) or s.is_queued_for_deletion(): continue
 		var s_idx = all_stones.find(s)
+		if lifebuoy_ids.has(s_idx) or piranha_ids.has(s_idx): continue # Can simidinden/Piranadan hamle BAŞLAYAMAZ
+		
 		for d in normal_dirs:
 			var current_seg = [s]
 			var mask = (1 << s_idx)
@@ -520,7 +795,10 @@ func generate_all_move_masks():
 				r += int(d.x)
 				c += int(d.y)
 				var next_s = get_stone_at_full(r, c)
-				if next_s:
+				if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
+					var next_idx = all_stones.find(next_s)
+					if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break # Çarptıysa DUR
+					
 					current_seg.append(next_s)
 					mask |= (1 << all_stones.find(next_s))
 					if not normal_move_masks.has(mask): normal_move_masks.append(mask)
@@ -530,7 +808,10 @@ func generate_all_move_masks():
 	if current_level >= 8:
 		var diag_dirs = [Vector2(1,1), Vector2(-1,-1), Vector2(1,-1), Vector2(-1,1)]
 		for s in all_stones:
+			if not is_instance_valid(s) or s.is_queued_for_deletion(): continue
 			var s_idx = all_stones.find(s)
+			if lifebuoy_ids.has(s_idx) or piranha_ids.has(s_idx): continue
+			
 			for d in diag_dirs:
 				var current_seg = [s]
 				var mask = (1 << s_idx)
@@ -540,9 +821,12 @@ func generate_all_move_masks():
 					r += int(d.x)
 					c += int(d.y)
 					var next_s = get_stone_at_full(r, c)
-					if next_s:
+					if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
+						var next_idx = all_stones.find(next_s)
+						if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break # Can simidi çakışması DUR
+						
 						current_seg.append(next_s)
-						mask |= (1 << all_stones.find(next_s))
+						mask |= (1 << next_idx)
 						if not ai_diagonal_move_masks.has(mask): ai_diagonal_move_masks.append(mask)
 					else:
 						break
@@ -560,17 +844,24 @@ func generate_all_move_masks():
 		]
 		
 	for corner in all_stones:
+		if not is_instance_valid(corner) or corner.is_queued_for_deletion(): continue
+		var corner_idx = all_stones.find(corner)
+		if lifebuoy_ids.has(corner_idx) or piranha_ids.has(corner_idx): continue # L-Hamle Köşesi can simidi/pirana olamaz
+		
 		for pair in ortho_pairs:
 			var m1s = []
-			var m1 = (1 << all_stones.find(corner))
+			var m1 = (1 << corner_idx)
 			var r = corner.row_index
 			var c = corner.col_index
 			while true:
 				r += int(pair[0].x)
 				c += int(pair[0].y)
 				var next_s = get_stone_at_full(r, c)
-				if next_s:
-					m1 |= (1 << all_stones.find(next_s))
+				if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
+					var next_idx = all_stones.find(next_s)
+					if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break
+					
+					m1 |= (1 << next_idx)
 					m1s.append(m1)
 				else: break
 				
@@ -582,8 +873,11 @@ func generate_all_move_masks():
 				r += int(pair[1].x)
 				c += int(pair[1].y)
 				var next_s = get_stone_at_full(r, c)
-				if next_s:
-					m2 |= (1 << all_stones.find(next_s))
+				if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
+					var next_idx = all_stones.find(next_s)
+					if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break
+					
+					m2 |= (1 << next_idx)
 					m2s.append(m2)
 				else: break
 				
@@ -646,6 +940,7 @@ func get_stone_at_full(r: int, c: int):
 
 func _on_stone_clicked(row_index, col_index, stone):
 	if current_turn != "Player": return
+	if piranha_ids.has(all_stones.find(stone)): return
 	
 	if stone.is_selected:
 		stone.deselect()
@@ -754,10 +1049,40 @@ func detonate_bomb(bomb):
 	current_turn = "Enemy"
 	play_enemy_turn()
 
+func check_lifebuoy_sinks():
+	var sunk_any = false
+	var to_sink = []
+	for id in lifebuoy_ids:
+		var s = all_stones[id]
+		if not is_instance_valid(s) or s.is_queued_for_deletion(): continue
+		
+		var has_blocker = false
+		for dir in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+			var neighbor = get_stone_at_full(s.row_index + dir.x, s.col_index + dir.y)
+			if neighbor and is_instance_valid(neighbor) and not neighbor.is_queued_for_deletion():
+				if not lifebuoy_ids.has(all_stones.find(neighbor)):
+					has_blocker = true
+					break
+		
+		if not has_blocker:
+			to_sink.append(s)
+			
+	for s in to_sink:
+		s.queue_free()
+		sunk_any = true
+		
+	if sunk_any:
+		generate_all_move_masks()
+
 func check_win_condition() -> bool:
+	check_lifebuoy_sinks()
+	
 	var remaining = 0
-	for s in all_stones:
-		if is_instance_valid(s) and not s.is_queued_for_deletion(): remaining += 1
+	for i in range(all_stones.size()):
+		var s = all_stones[i]
+		if is_instance_valid(s) and not s.is_queued_for_deletion():
+			if not piranha_ids.has(i):
+				remaining += 1
 		
 	if remaining == 0:
 		print(current_turn + " kaybetti! (Son taşı alan kaybeder)")
@@ -797,11 +1122,10 @@ func play_enemy_turn():
 	
 	memo.clear()
 	var best_move_mask = get_best_move_mask(current_board_state, current_armor_state, max_depth, ai_special_uses_left, ai_ultimate_uses_left)
-	
 	if best_move_mask == 0:
 		print("Yapay Zeka hamle bulamadı!")
-		current_turn = "Player"
-		$EndTurnButton.disabled = false
+		current_turn = "Piranha"
+		play_piranha_turn()
 		return
 		
 	var final_move = []
@@ -860,11 +1184,132 @@ func play_enemy_turn():
 	
 	advance_timers()
 	
+	current_turn = "Piranha"
+	play_piranha_turn()
+
+var search_node_count: int = 0
+
+func get_valid_prey() -> Array:
+	var prey = []
+	for i in range(all_stones.size()):
+		var s = all_stones[i]
+		if is_instance_valid(s) and not s.is_queued_for_deletion():
+			if not piranha_ids.has(i) and not lifebuoy_ids.has(i):
+				prey.append(s)
+	return prey
+
+func get_stone_density(s) -> int:
+	var count = 0
+	var dirs = [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1), Vector2(1,1), Vector2(-1,-1), Vector2(1,-1), Vector2(-1,1)]
+	for dir in dirs:
+		var neighbor = get_stone_at_full(s.row_index + int(dir.x), s.col_index + int(dir.y))
+		if neighbor and is_instance_valid(neighbor) and not neighbor.is_queued_for_deletion():
+			count += 1
+	return count
+
+func play_piranha_turn():
+	if current_level < 11 or piranha_ids.is_empty():
+		end_piranha_turn()
+		return
+		
+	print("Piranalar hareket ediyor!")
+	var ate_anything = false
+	var moved_anything = false
+	
+	for p_idx in piranha_ids:
+		var piranha = all_stones[p_idx]
+		if not is_instance_valid(piranha): continue
+		
+		var targets = []
+		var dirs = [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1), Vector2(1,1), Vector2(-1,-1), Vector2(1,-1), Vector2(-1,1)]
+		for dir in dirs:
+			var target = get_stone_at_full(piranha.row_index + int(dir.x), piranha.col_index + int(dir.y))
+			if target and is_instance_valid(target) and not target.is_queued_for_deletion():
+				var t_idx = all_stones.find(target)
+				if not piranha_ids.has(t_idx) and not lifebuoy_ids.has(t_idx):
+					targets.append(target)
+					
+		if targets.size() > 0:
+			targets.shuffle()
+			var victim = targets[0]
+			
+			var target_pos = victim.position
+			var target_r = victim.row_index
+			var target_c = victim.col_index
+			
+			destroy_stone(victim, true) # Permanent kill
+			ate_anything = true
+			
+			var tween = get_tree().create_tween()
+			tween.tween_property(piranha, "position", target_pos, 0.3).set_trans(Tween.TRANS_SINE)
+			piranha.row_index = target_r
+			piranha.col_index = target_c
+		else:
+			# Pathfinding
+			var all_prey = get_valid_prey()
+			if all_prey.is_empty(): continue
+			
+			var min_dist = 9999
+			var closest_prey = []
+			
+			for prey in all_prey:
+				# Chebyshev distance for 8-way movement
+				var dist = max(abs(piranha.row_index - prey.row_index), abs(piranha.col_index - prey.col_index))
+				if dist < min_dist:
+					min_dist = dist
+					closest_prey = [prey]
+				elif dist == min_dist:
+					closest_prey.append(prey)
+					
+			if closest_prey.size() > 1:
+				var max_density = -1
+				var dense_prey = []
+				for prey in closest_prey:
+					var density = get_stone_density(prey)
+					if density > max_density:
+						max_density = density
+						dense_prey = [prey]
+					elif density == max_density:
+						dense_prey.append(prey)
+				closest_prey = dense_prey
+				
+			closest_prey.shuffle()
+			var target_prey = closest_prey[0]
+			
+			var dr = target_prey.row_index - piranha.row_index
+			var dc = target_prey.col_index - piranha.col_index
+			
+			var possible_moves = []
+			if dr != 0 and dc != 0: possible_moves.append(Vector2(sign(dr), sign(dc)))
+			if dr != 0: possible_moves.append(Vector2(sign(dr), 0))
+			if dc != 0: possible_moves.append(Vector2(0, sign(dc)))
+			
+			if possible_moves.size() > 0:
+				possible_moves.shuffle()
+				var move = possible_moves[0]
+				var new_r = piranha.row_index + int(move.x)
+				var new_c = piranha.col_index + int(move.y)
+				
+				# Level 11 layout uses: x = r * 65, y = c * 65
+				var target_pos = piranha.position + Vector2(move.x * 65, move.y * 65)
+				
+				var tween = get_tree().create_tween()
+				tween.tween_property(piranha, "position", target_pos, 0.3).set_trans(Tween.TRANS_SINE)
+				piranha.row_index = new_r
+				piranha.col_index = new_c
+				moved_anything = true
+			
+	if ate_anything or moved_anything:
+		await get_tree().create_timer(0.5).timeout
+		generate_all_move_masks()
+		if check_win_condition(): return
+		
+	end_piranha_turn()
+
+func end_piranha_turn():
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	print("Sıra sende!")
-
-var search_node_count: int = 0
 
 func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, special_uses: int, ultimate_uses: int) -> int:
 	search_node_count = 0
@@ -884,7 +1329,7 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			
 	var special_moves = []
 	if special_uses > 0:
-		if current_level == 8:
+		if current_level >= 8:
 			for m in ai_diagonal_move_masks:
 				if (board_state & m) == m: special_moves.append(m)
 		else:
@@ -1093,8 +1538,12 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			
 	var special_moves = []
 	if is_ai_turn and special_uses > 0:
-		for m in l_move_masks:
-			if (board_state & m) == m: special_moves.append(m)
+		if current_level >= 8:
+			for m in ai_diagonal_move_masks:
+				if (board_state & m) == m: special_moves.append(m)
+		else:
+			for m in l_move_masks:
+				if (board_state & m) == m: special_moves.append(m)
 			
 	var ultimate_moves = []
 	if is_ai_turn and ultimate_uses > 0:

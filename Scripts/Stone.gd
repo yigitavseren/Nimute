@@ -23,21 +23,51 @@ func deselect():
 
 func set_type(type: String):
 	if type == "bomb":
-		base_color = Color(0.2, 0.2, 0.2)
+		base_color = Color(1, 1, 1) # Çizimin kendi renklerini koru
 		self.self_modulate = Color(1, 1, 1, 0)
 		$Icon.texture = load("res://Assets/bomb.png")
+		$Icon.scale = Vector2(1.0, 1.0)
+		$Icon.position = Vector2(0, 0)
 	elif type == "lily_pad":
-		base_color = Color(0.1, 0.8, 0.2)
+		base_color = Color(1, 1, 1)
 		self.self_modulate = Color(1, 1, 1, 0)
 		$Icon.texture = load("res://Assets/lily_pad.png")
+		$Icon.scale = Vector2(1.0, 1.0)
+		$Icon.position = Vector2(0, 0)
 	elif type == "armored":
-		base_color = Color(0.6, 0.2, 0.8)
+		base_color = Color(1, 1, 1)
 		self.self_modulate = Color(1, 1, 1, 0)
 		$Icon.texture = load("res://Assets/armored.png")
+		$Icon.scale = Vector2(1.0, 1.0)
+		$Icon.position = Vector2(0, 0)
+	elif type == "lifebuoy":
+		base_color = Color(1, 1, 1) 
+		self.self_modulate = Color(1, 1, 1, 0)
+		$Icon.texture = load("res://Assets/lifebuoy_transparent.png")
+		$Icon.scale = Vector2(1.8, 1.8)
+		$Icon.position = Vector2(-17.6, -17.6) # Centering the scaled up icon
+	elif type == "piranha":
+		var tex = load("res://Assets/piranha.png")
+		if tex:
+			base_color = Color(1, 1, 1)
+			self.self_modulate = Color(1, 1, 1, 0) # Resim varsa arkaplanı gizle
+			$Icon.texture = tex
+			$Icon.scale = Vector2(2.3, 2.3)
+			$Icon.position = Vector2(-28, -28) 
+			self.text = ""
+		else:
+			# Resim henüz eklenmediyse geçici siyah renk ve text göster
+			base_color = Color(0.1, 0.1, 0.1)
+			self.self_modulate = Color(0.1, 0.1, 0.1, 1)
+			$Icon.texture = null
+			self.text = ">:<"
 	else:
 		base_color = Color(1, 1, 1)
 		self.self_modulate = Color(1, 1, 1, 1)
 		$Icon.texture = null
+		$Icon.scale = Vector2(1.0, 1.0)
+		$Icon.position = Vector2(0, 0)
+		self.text = ""
 	
 	modulate = base_color
 
