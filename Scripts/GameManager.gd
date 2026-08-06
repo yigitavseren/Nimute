@@ -210,7 +210,7 @@ func create_board():
 	if current_level >= 11:
 		var sign_panel = PanelContainer.new()
 		sign_panel.name = "PiranhaSign"
-		sign_panel.position = Vector2(850, 60)
+		sign_panel.position = Vector2(20, 100)
 		var s_style = StyleBoxFlat.new()
 		s_style.bg_color = Color(0.35, 0.2, 0.1)
 		s_style.border_width_left = 4
@@ -612,34 +612,20 @@ func create_board():
 				make_bomb(s)
 				
 		# Can simitlerini oluştur (ID bulmamız gerektiği için hepsi oluştuktan sonra)
-		# Sağ alt küme: (6, 4) ve (7, 4)
-		var lb1_s1 = get_stone_at_full(6, 4)
-		var lb1_s2 = get_stone_at_full(7, 4)
-		if lb1_s1 and lb1_s2:
-			lifebuoy_ids.append(all_stones.find(lb1_s1))
-			lifebuoy_ids.append(all_stones.find(lb1_s2))
-			lb1_s1.set_type("lifebuoy")
-			lb1_s2.set_type("lifebuoy")
+		
+		# Sağ Alt Küme: Sadece tam ortadaki (7, 4) can simidi olacak
+		var lb_center = get_stone_at_full(7, 4)
+		if lb_center:
+			lifebuoy_ids.append(all_stones.find(lb_center))
+			lb_center.set_type("lifebuoy")
 			
-		# Merkez Şekil Can Simitleri:
-		# Sol Üst: (-1, -1) ve (-2, -1)
-		# Sol Alt: (-1, 1) ve (-2, 1)
-		# Sağ Üst: (1, -1) ve (2, -1)
-		# Sağ Alt: (1, 1) ve (2, 1)
-		var lb_pairs = [
-			[Vector2(-1, -1), Vector2(-2, -1)],
-			[Vector2(-1, 1), Vector2(-2, 1)],
-			[Vector2(1, -1), Vector2(2, -1)],
-			[Vector2(1, 1), Vector2(2, 1)]
-		]
-		for pair in lb_pairs:
-			var s1 = get_stone_at_full(int(pair[0].x), int(pair[0].y))
-			var s2 = get_stone_at_full(int(pair[1].x), int(pair[1].y))
-			if s1 and s2:
-				lifebuoy_ids.append(all_stones.find(s1))
-				lifebuoy_ids.append(all_stones.find(s2))
-				s1.set_type("lifebuoy")
-				s2.set_type("lifebuoy")
+		# Merkez Şekil Can Simitleri: Sadece kırmızı çizgili Beyaz taşlar
+		var center_lbs = [Vector2(-2, -1), Vector2(-2, 1), Vector2(2, -1), Vector2(2, 1)]
+		for pos in center_lbs:
+			var s = get_stone_at_full(int(pos.x), int(pos.y))
+			if s:
+				lifebuoy_ids.append(all_stones.find(s))
+				s.set_type("lifebuoy")
 
 	if current_level >= 11:
 		spawn_piranhas()
@@ -661,10 +647,9 @@ func spawn_piranhas():
 	
 	var candidates = []
 	for i in range(all_stones.size()):
-		if bomb_stone_ids.has(i) or armored_stone_ids.has(i) or lifebuoy_ids.has(i) or lily_pad_ids.has(i):
-			continue
-			
 		var s = all_stones[i]
+		if bomb_stones.has(s) or armored_stone_ids.has(i) or lifebuoy_ids.has(i) or lily_pad_ids.has(i):
+			continue
 		var neighbors = 0
 		for dir in [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1), Vector2(1,1), Vector2(1,-1), Vector2(-1,1), Vector2(-1,-1)]:
 			var neighbor = get_stone_at_full(s.row_index + int(dir.x), s.col_index + int(dir.y))
@@ -782,7 +767,7 @@ func generate_all_move_masks():
 	for s in all_stones:
 		if not is_instance_valid(s) or s.is_queued_for_deletion(): continue
 		var s_idx = all_stones.find(s)
-		if lifebuoy_ids.has(s_idx) or piranha_ids.has(s_idx): continue # Can simidinden/Piranadan hamle BAŞLAYAMAZ
+		if piranha_ids.has(s_idx) or (lifebuoy_ids.has(s_idx) and not is_lifebuoy_isolated(s_idx)): continue
 		
 		for d in normal_dirs:
 			var current_seg = [s]
@@ -797,7 +782,7 @@ func generate_all_move_masks():
 				var next_s = get_stone_at_full(r, c)
 				if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
 					var next_idx = all_stones.find(next_s)
-					if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break # Çarptıysa DUR
+					if piranha_ids.has(next_idx) or (lifebuoy_ids.has(next_idx) and not is_lifebuoy_isolated(next_idx)): break
 					
 					current_seg.append(next_s)
 					mask |= (1 << all_stones.find(next_s))
@@ -810,7 +795,7 @@ func generate_all_move_masks():
 		for s in all_stones:
 			if not is_instance_valid(s) or s.is_queued_for_deletion(): continue
 			var s_idx = all_stones.find(s)
-			if lifebuoy_ids.has(s_idx) or piranha_ids.has(s_idx): continue
+			if piranha_ids.has(s_idx) or (lifebuoy_ids.has(s_idx) and not is_lifebuoy_isolated(s_idx)): continue
 			
 			for d in diag_dirs:
 				var current_seg = [s]
@@ -823,7 +808,7 @@ func generate_all_move_masks():
 					var next_s = get_stone_at_full(r, c)
 					if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
 						var next_idx = all_stones.find(next_s)
-						if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break # Can simidi çakışması DUR
+						if piranha_ids.has(next_idx) or (lifebuoy_ids.has(next_idx) and not is_lifebuoy_isolated(next_idx)): break
 						
 						current_seg.append(next_s)
 						mask |= (1 << next_idx)
@@ -846,7 +831,7 @@ func generate_all_move_masks():
 	for corner in all_stones:
 		if not is_instance_valid(corner) or corner.is_queued_for_deletion(): continue
 		var corner_idx = all_stones.find(corner)
-		if lifebuoy_ids.has(corner_idx) or piranha_ids.has(corner_idx): continue # L-Hamle Köşesi can simidi/pirana olamaz
+		if piranha_ids.has(corner_idx) or (lifebuoy_ids.has(corner_idx) and not is_lifebuoy_isolated(corner_idx)): continue
 		
 		for pair in ortho_pairs:
 			var m1s = []
@@ -859,7 +844,7 @@ func generate_all_move_masks():
 				var next_s = get_stone_at_full(r, c)
 				if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
 					var next_idx = all_stones.find(next_s)
-					if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break
+					if piranha_ids.has(next_idx) or (lifebuoy_ids.has(next_idx) and not is_lifebuoy_isolated(next_idx)): break
 					
 					m1 |= (1 << next_idx)
 					m1s.append(m1)
@@ -875,7 +860,7 @@ func generate_all_move_masks():
 				var next_s = get_stone_at_full(r, c)
 				if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
 					var next_idx = all_stones.find(next_s)
-					if lifebuoy_ids.has(next_idx) or piranha_ids.has(next_idx): break
+					if piranha_ids.has(next_idx) or (lifebuoy_ids.has(next_idx) and not is_lifebuoy_isolated(next_idx)): break
 					
 					m2 |= (1 << next_idx)
 					m2s.append(m2)
@@ -1050,29 +1035,18 @@ func detonate_bomb(bomb):
 	play_enemy_turn()
 
 func check_lifebuoy_sinks():
-	var sunk_any = false
-	var to_sink = []
-	for id in lifebuoy_ids:
-		var s = all_stones[id]
-		if not is_instance_valid(s) or s.is_queued_for_deletion(): continue
-		
-		var has_blocker = false
-		for dir in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
-			var neighbor = get_stone_at_full(s.row_index + dir.x, s.col_index + dir.y)
-			if neighbor and is_instance_valid(neighbor) and not neighbor.is_queued_for_deletion():
-				if not lifebuoy_ids.has(all_stones.find(neighbor)):
-					has_blocker = true
-					break
-		
-		if not has_blocker:
-			to_sink.append(s)
-			
-	for s in to_sink:
-		s.queue_free()
-		sunk_any = true
-		
-	if sunk_any:
-		generate_all_move_masks()
+	pass # Can simitleri artık kendi kendine batmıyor.
+
+func is_lifebuoy_isolated(s_idx: int) -> bool:
+	var s = all_stones[s_idx]
+	if not is_instance_valid(s) or s.is_queued_for_deletion(): return true
+	for dir in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+		var neighbor = get_stone_at_full(s.row_index + dir.x, s.col_index + dir.y)
+		if neighbor and is_instance_valid(neighbor) and not neighbor.is_queued_for_deletion():
+			var n_idx = all_stones.find(neighbor)
+			if not lifebuoy_ids.has(n_idx) and not piranha_ids.has(n_idx):
+				return false # Destek var, izole DEĞİL
+	return true # Destek yok, izole!
 
 func check_win_condition() -> bool:
 	check_lifebuoy_sinks()
@@ -1194,7 +1168,7 @@ func get_valid_prey() -> Array:
 	for i in range(all_stones.size()):
 		var s = all_stones[i]
 		if is_instance_valid(s) and not s.is_queued_for_deletion():
-			if not piranha_ids.has(i) and not lifebuoy_ids.has(i):
+			if not piranha_ids.has(i) and not (lifebuoy_ids.has(i) and not is_lifebuoy_isolated(i)):
 				prey.append(s)
 	return prey
 
@@ -1226,7 +1200,7 @@ func play_piranha_turn():
 			var target = get_stone_at_full(piranha.row_index + int(dir.x), piranha.col_index + int(dir.y))
 			if target and is_instance_valid(target) and not target.is_queued_for_deletion():
 				var t_idx = all_stones.find(target)
-				if not piranha_ids.has(t_idx) and not lifebuoy_ids.has(t_idx):
+				if not piranha_ids.has(t_idx) and not (lifebuoy_ids.has(t_idx) and not is_lifebuoy_isolated(t_idx)):
 					targets.append(target)
 					
 		if targets.size() > 0:

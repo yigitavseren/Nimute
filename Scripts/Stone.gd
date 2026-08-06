@@ -52,8 +52,8 @@ func set_type(type: String):
 			base_color = Color(1, 1, 1)
 			self.self_modulate = Color(1, 1, 1, 0) # Resim varsa arkaplanı gizle
 			$Icon.texture = tex
-			$Icon.scale = Vector2(2.3, 2.3)
-			$Icon.position = Vector2(-28, -28) 
+			$Icon.scale = Vector2(1.7, 1.7)
+			$Icon.position = Vector2(-15.4, -15.4) 
 			self.text = ""
 		else:
 			# Resim henüz eklenmediyse geçici siyah renk ve text göster
