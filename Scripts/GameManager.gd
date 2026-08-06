@@ -96,6 +96,27 @@ func _ready():
 		l12.size = Vector2(250, 40)
 		l12.pressed.connect(func(): start_level(12))
 		$LevelSelectUI/Panel/Part2LevelButtons.add_child(l12)
+		
+	if has_node("LevelSelectUI/Panel/Part2LevelButtons/Level13Button"):
+		get_node("LevelSelectUI/Panel/Part2LevelButtons/Level13Button").pressed.connect(func(): start_level(13))
+	else:
+		var l13 = Button.new()
+		l13.text = "Level 6: Bombala"
+		l13.name = "Level13Button"
+		l13.add_theme_font_size_override("font_size", 24)
+		l13.position = Vector2(100, 310)
+		l13.size = Vector2(250, 40)
+		l13.pressed.connect(func(): start_level(13))
+		$LevelSelectUI/Panel/Part2LevelButtons.add_child(l13)
+	
+	# Bütün level butonlarını ortala ve boyutlarını eşitle
+	var btn_w = 260
+	var p_width = 400
+	for p in [$LevelSelectUI/Panel/Part1LevelButtons, $LevelSelectUI/Panel/Part2LevelButtons]:
+		for btn in p.get_children():
+			if btn is Button and not btn.name.begins_with("Back"):
+				btn.size.x = btn_w
+				btn.position.x = (p_width - btn_w) / 2.0
 	
 	# --- UI STYLING ---
 	var panel_style = StyleBoxFlat.new()
@@ -627,6 +648,56 @@ func create_board():
 				lifebuoy_ids.append(all_stones.find(s))
 				s.set_type("lifebuoy")
 
+	elif current_level == 13:
+		var start_y = 0
+		var start_x = 0
+		var grid_size = 45
+		
+		var l13_white = []
+		var l13_bomb = []
+		
+		# Merkez ve İç Haç (Tamamı Beyaz, sadece merkez Bomba)
+		l13_bomb.append(Vector2(0, 0))
+		l13_white.append_array([Vector2(0, -1), Vector2(0, -2), Vector2(0, 1), Vector2(0, 2), Vector2(-1, 0), Vector2(-2, 0), Vector2(1, 0), Vector2(2, 0)])
+		
+		# Kare Üst Kenar (y=-3)
+		l13_white.append_array([Vector2(-3, -3), Vector2(-1, -3), Vector2(1, -3), Vector2(3, -3)])
+		l13_bomb.append_array([Vector2(-2, -3), Vector2(0, -3), Vector2(2, -3)])
+		
+		# Kare Alt Kenar (y=3)
+		l13_white.append_array([Vector2(-3, 3), Vector2(-1, 3), Vector2(1, 3), Vector2(3, 3)])
+		l13_bomb.append_array([Vector2(-2, 3), Vector2(0, 3), Vector2(2, 3)])
+		
+		# Kare Sol Kenar İç Kısmı (x=-3)
+		l13_white.append_array([Vector2(-3, -1), Vector2(-3, 1)])
+		l13_bomb.append_array([Vector2(-3, -2), Vector2(-3, 0), Vector2(-3, 2)])
+		
+		# Kare Sağ Kenar İç Kısmı (x=3)
+		l13_white.append_array([Vector2(3, -1), Vector2(3, 1)])
+		l13_bomb.append_array([Vector2(3, -2), Vector2(3, 0), Vector2(3, 2)])
+		
+		# Dış Kollar (5 birim uzaklıkta sonlanan bombalar ve çengeller)
+		l13_white.append_array([Vector2(0, -4), Vector2(-1, -5)]) # Üst kol
+		l13_bomb.append(Vector2(0, -5))
+		
+		l13_white.append_array([Vector2(0, 4), Vector2(1, 5)]) # Alt kol
+		l13_bomb.append(Vector2(0, 5))
+		
+		l13_white.append_array([Vector2(-4, 0), Vector2(-5, 1)]) # Sol kol
+		l13_bomb.append(Vector2(-5, 0))
+		
+		l13_white.append_array([Vector2(4, 0), Vector2(5, -1)]) # Sağ kol
+		l13_bomb.append(Vector2(5, 0))
+		
+		var all_c = []
+		all_c.append_array(l13_white)
+		all_c.append_array(l13_bomb)
+		
+		for pos in all_c:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			if l13_bomb.has(pos):
+				make_bomb(s)
+
 	if current_level >= 11:
 		spawn_piranhas()
 		
@@ -643,7 +714,7 @@ func spawn_stone(r, c, x, y):
 	return stone
 
 func spawn_piranhas():
-	var num_piranhas = (randi() % 2) + 1 # 1 veya 2 tane çıksın
+	var num_piranhas = 4 if current_level >= 13 else ((randi() % 2) + 1)
 	
 	var candidates = []
 	for i in range(all_stones.size()):
