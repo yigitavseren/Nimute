@@ -19,3 +19,18 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_1")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_1")
 theme_override_styles/focus = SubResource("StyleBoxFlat_1")
 script = ExtResource("1_a1b2c")
+
+[node name="Icon" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 5.0
+offset_top = 5.0
+offset_right = -5.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+

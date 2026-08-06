@@ -20,3 +20,24 @@ func select():
 func deselect():
 	is_selected = false
 	modulate = base_color # Normal
+
+func set_type(type: String):
+	if type == "bomb":
+		base_color = Color(0.2, 0.2, 0.2)
+		self.self_modulate = Color(1, 1, 1, 0)
+		$Icon.texture = load("res://Assets/bomb.png")
+	elif type == "lily_pad":
+		base_color = Color(0.1, 0.8, 0.2)
+		self.self_modulate = Color(1, 1, 1, 0)
+		$Icon.texture = load("res://Assets/lily_pad.png")
+	elif type == "armored":
+		base_color = Color(0.6, 0.2, 0.8)
+		self.self_modulate = Color(1, 1, 1, 0)
+		$Icon.texture = load("res://Assets/armored.png")
+	else:
+		base_color = Color(1, 1, 1)
+		self.self_modulate = Color(1, 1, 1, 1)
+		$Icon.texture = null
+	
+	modulate = base_color
+

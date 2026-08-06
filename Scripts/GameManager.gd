@@ -23,6 +23,8 @@ var adj_masks = []
 
 var armored_stone_ids = []
 var current_armor_state: int = 0
+var lily_pad_ids = []
+var lily_pad_queue = []
 
 var player_special_uses_left: int = 0
 
@@ -66,6 +68,7 @@ func _ready():
 	$LevelSelectUI/Panel/Part1LevelButtons/Level7Button.pressed.connect(func(): start_level(7))
 	
 	$LevelSelectUI/Panel/Part2LevelButtons/Level8Button.pressed.connect(func(): start_level(8))
+	$LevelSelectUI/Panel/Part2LevelButtons/Level9Button.pressed.connect(func(): start_level(9))
 	
 	# --- UI STYLING ---
 	var panel_style = StyleBoxFlat.new()
@@ -158,26 +161,36 @@ func create_board():
 	bomb_stones.clear()
 	armored_stone_ids.clear()
 	current_armor_state = 0
+	
+	for q in lily_pad_queue:
+		if is_instance_valid(q.label_node): q.label_node.queue_free()
+	lily_pad_queue.clear()
+	lily_pad_ids.clear()
 	selection_mode = "none"
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	
-	if current_level == 8: player_special_uses_left = 1
+	if current_level == 9:
+		$Background.color = Color(0.05, 0.4, 0.6) # Okyanus Mavisi
+	else:
+		$Background.color = Color(0.08, 0.08, 0.08) # Varsayılan koyu gri
+	
+	if current_level >= 8: player_special_uses_left = 1
 	else: player_special_uses_left = 0
 	
 	if current_level >= 4 and current_level <= 7: ai_special_uses_left = 2
 	elif current_level < 4: ai_special_uses_left = 1
-	else: ai_special_uses_left = 2 # Level 8 Yelkenci çapraz hakkı
+	else: ai_special_uses_left = 2 
 	
 	if current_level == 7: ai_ultimate_uses_left = 1
 	else: ai_ultimate_uses_left = 0
 	
-	if current_level == 7 or current_level == 8:
+	if current_level == 7 or current_level >= 8:
 		$Board.scale = Vector2(0.85, 0.85)
 	else:
 		$Board.scale = Vector2(1.0, 1.0)
 		
-	if current_level == 8:
+	if current_level >= 8:
 		$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: 2"
 		$HUD/ToggleLMoveButton.show()
 		$HUD/ToggleLMoveButton.button_pressed = false
@@ -356,6 +369,45 @@ func create_board():
 		for pos in coords:
 			spawn_stone(int(pos.x), int(pos.y), start_x + pos.y * 50, start_y + pos.x * 50)
 			
+	elif current_level == 9:
+		# Level 9 (Kısım 2 - Level 2): Okyanus & Nilüfer Yaprakları
+		var start_y = 0
+		var start_x = 0
+		var grid_size = 55
+		
+		var bomb_coords = [Vector2(0, -6), Vector2(0, 6)]
+		var armored_coords = [
+			Vector2(-2, -3), Vector2(-1, -3), Vector2(1, -3), Vector2(2, -3),
+			Vector2(-2, 3), Vector2(-1, 3), Vector2(1, 3), Vector2(2, 3)
+		]
+		var lily_coords = [
+			Vector2(-2, -4), Vector2(-2, -2), Vector2(2, -4), Vector2(2, -2),
+			Vector2(0, 0),
+			Vector2(-2, 2), Vector2(-2, 4), Vector2(2, 2), Vector2(2, 4)
+		]
+		var white_coords = [
+			Vector2(0, -7), Vector2(-1, -6), Vector2(1, -6),
+			Vector2(-2, -5), Vector2(-1, -5), Vector2(0, -5), Vector2(1, -5), Vector2(2, -5),
+			Vector2(0, 7), Vector2(-1, 6), Vector2(1, 6),
+			Vector2(-2, 5), Vector2(-1, 5), Vector2(0, 5), Vector2(1, 5), Vector2(2, 5)
+		]
+		
+		var all_c = []
+		all_c.append_array(bomb_coords)
+		all_c.append_array(armored_coords)
+		all_c.append_array(lily_coords)
+		all_c.append_array(white_coords)
+		
+		for pos in all_c:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.y * grid_size, start_y + pos.x * grid_size)
+			if bomb_coords.has(pos):
+				make_bomb(s)
+			elif armored_coords.has(pos):
+				make_armored(s)
+			elif lily_coords.has(pos):
+				lily_pad_ids.append(all_stones.size() - 1)
+				s.set_type("lily_pad")
+			
 	generate_all_move_masks()
 
 func spawn_stone(r, c, x, y):
@@ -370,15 +422,13 @@ func spawn_stone(r, c, x, y):
 
 func make_bomb(stone):
 	bomb_stones.append(stone)
-	stone.base_color = Color(0.2, 0.2, 0.2)
-	stone.modulate = stone.base_color
+	stone.set_type("bomb")
 
 func make_armored(stone):
 	var id = all_stones.find(stone)
 	armored_stone_ids.append(id)
 	current_armor_state |= (1 << id)
-	stone.base_color = Color(0.6, 0.2, 0.8) # Purple
-	stone.modulate = stone.base_color
+	stone.set_type("armored")
 
 func build_adj_masks():
 	adj_masks.clear()
@@ -393,6 +443,59 @@ func build_adj_masks():
 			if (r_i == r_j and abs(c_i - c_j) == 1) or (c_i == c_j and abs(r_i - r_j) == 1):
 				mask |= (1 << j)
 		adj_masks.append(mask)
+
+func advance_timers():
+	var still_waiting = []
+	for lp in lily_pad_queue:
+		lp.turns_left -= 1
+		
+		var display_turns = ceil(lp.turns_left / 2.0)
+		if is_instance_valid(lp.label_node):
+			lp.label_node.text = str(display_turns)
+			
+		if lp.turns_left <= 0:
+			respawn_lily_pad(lp)
+			if is_instance_valid(lp.label_node): lp.label_node.queue_free()
+		else:
+			still_waiting.append(lp)
+	lily_pad_queue = still_waiting
+
+func has_non_lily_pads() -> bool:
+	for i in range(all_stones.size()):
+		var s = all_stones[i]
+		if is_instance_valid(s) and not s.is_queued_for_deletion():
+			if not lily_pad_ids.has(i):
+				return true
+	return false
+
+func destroy_stone(stone):
+	var s_idx = all_stones.find(stone)
+	if lily_pad_ids.has(s_idx) and has_non_lily_pads():
+		var lbl = Label.new()
+		lbl.text = "2"
+		lbl.position = stone.position - Vector2(10, 10)
+		lbl.add_theme_color_override("font_color", Color(0.1, 0.8, 0.2)) # Green label
+		$Board.add_child(lbl)
+		lily_pad_queue.append({
+			"index": s_idx,
+			"row": stone.row_index,
+			"col": stone.col_index,
+			"x": stone.position.x,
+			"y": stone.position.y,
+			"turns_left": 4,
+			"label_node": lbl
+		})
+	stone.queue_free()
+
+func respawn_lily_pad(info):
+	var s = stone_scene.instantiate()
+	s.position = Vector2(info.x, info.y)
+	s.row_index = info.row
+	s.col_index = info.col
+	s.stone_clicked.connect(_on_stone_clicked)
+	s.set_type("lily_pad")
+	$Board.add_child(s)
+	all_stones[info.index] = s
 
 func generate_all_move_masks():
 	normal_move_masks.clear()
@@ -424,7 +527,7 @@ func generate_all_move_masks():
 				else:
 					break
 					
-	if current_level == 8:
+	if current_level >= 8:
 		var diag_dirs = [Vector2(1,1), Vector2(-1,-1), Vector2(1,-1), Vector2(-1,1)]
 		for s in all_stones:
 			var s_idx = all_stones.find(s)
@@ -449,7 +552,7 @@ func generate_all_move_masks():
 		[Vector2(1,0), Vector2(0,1)], [Vector2(1,0), Vector2(0,-1)],
 		[Vector2(-1,0), Vector2(0,1)], [Vector2(-1,0), Vector2(0,-1)]
 	]
-	if current_level == 8:
+	if current_level >= 8:
 		# L move uses orthogonal components
 		ortho_pairs = [
 			[Vector2(1,0), Vector2(0,1)], [Vector2(1,0), Vector2(0,-1)],
@@ -569,7 +672,7 @@ func validate_selection():
 		is_valid = false
 	elif normal_move_masks.has(mask):
 		is_valid = true
-	elif current_level == 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
+	elif current_level >= 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
 		if l_move_masks.has(mask):
 			is_valid = true
 			
@@ -586,7 +689,7 @@ func end_turn():
 	for s in selected_stones:
 		mask |= (1 << all_stones.find(s))
 		
-	if current_level == 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
+	if current_level >= 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
 		if l_move_masks.has(mask):
 			player_special_uses_left -= 1
 			$HUD/ToggleLMoveButton.set_pressed_no_signal(false)
@@ -599,14 +702,14 @@ func end_turn():
 		var s_id = all_stones.find(stone)
 		if (current_armor_state & (1 << s_id)) != 0:
 			current_armor_state &= ~(1 << s_id)
-			stone.base_color = Color(1, 1, 1) # Zırhı kırıldı, temeli beyaza dön
+			stone.set_type("normal") # Zırh kırıldı, temeli beyaza dön
 			stone.modulate = Color(1, 1, 1) # Beyaza dön
 			stone.deselect()
 		else:
 			to_free.append(stone)
 			
 	for stone in to_free:
-		if is_instance_valid(stone): stone.queue_free()
+		if is_instance_valid(stone): destroy_stone(stone)
 		
 	selected_stones.clear()
 	selection_mode = "none"
@@ -639,11 +742,11 @@ func detonate_bomb(bomb):
 		var s_id = all_stones.find(s)
 		if s != bomb and (current_armor_state & (1 << s_id)) != 0:
 			current_armor_state &= ~(1 << s_id)
-			s.base_color = Color(1, 1, 1) # Zırh kırıldı
+			s.set_type("normal") # Zırh kırıldı
 			s.modulate = Color(1, 1, 1)
 			s.deselect()
 		else:
-			s.queue_free()
+			destroy_stone(s)
 			
 	await get_tree().process_frame
 	if check_win_condition(): return
@@ -663,7 +766,7 @@ func check_win_condition() -> bool:
 			$HUD/GameOverPanel/GameOverLabel.text = "KAYBETTİN!\n(Son Taşı Alan Kaybeder)"
 			$HUD/GameOverPanel/GameOverLabel.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
 		else:
-			if current_level == 8:
+			if current_level >= 8:
 				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nYelkenci Kaybetti!"
 			else:
 				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nZürafa Kaybetti!"
@@ -675,6 +778,8 @@ func play_enemy_turn():
 	$EndTurnButton.disabled = true
 	await get_tree().create_timer(1.0).timeout
 	if current_turn != "Enemy": return
+	
+	advance_timers()
 	
 	var current_board_state = 0
 	var stones_left = 0
@@ -724,7 +829,7 @@ func play_enemy_turn():
 			print("Zürafa Boss 'Nihai Atak' özel yeteneğini kullandı!")
 		elif ai_special_uses_left > 0 and (l_move_masks.has(best_move_mask) or ai_diagonal_move_masks.has(best_move_mask)):
 			ai_special_uses_left -= 1
-			if current_level == 8:
+			if current_level >= 8:
 				$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: " + str(ai_special_uses_left)
 				print("Yelkenci 'Çapraz' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 			else:
@@ -744,14 +849,16 @@ func play_enemy_turn():
 		if (current_armor_state & (1 << s_id)) != 0:
 			current_armor_state &= ~(1 << s_id)
 			if is_instance_valid(s): 
-				s.base_color = Color(1, 1, 1)
+				s.set_type("normal")
 				s.modulate = Color(1, 1, 1)
 				s.deselect()
 		else:
-			if is_instance_valid(s): s.queue_free()
+			if is_instance_valid(s): destroy_stone(s)
 			
 	await get_tree().process_frame
 	if check_win_condition(): return
+	
+	advance_timers()
 	
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
@@ -858,7 +965,7 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 		# KOMUT 1: Sadece tekli taşlar kalıyorsa ve sayısı TEK ise kesin kazanırız.
 		var is_guaranteed_win = false
 		if big_piles == 0 and ones_count % 2 == 1:
-			if current_level != 7 and current_level != 8: return move
+			if current_level != 7 and current_level < 8: return move
 			else: is_guaranteed_win = true
 			
 		# KOMUT 2: Birden fazla büyük grup varsa ve Nim-Sum 0 ise kesin kazanırız. (Örn: [2, 2] bırakmak)
@@ -878,11 +985,11 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			if is_ultimate_used: score += 0.5
 			elif is_special_used: score += 0.3
 			
-		# Kibir Mekaniği (Level 7 ve Level 8): Boss gösteriş yapmak için mükemmel stratejiyi feda edip özelliklerini GÖZÜ KAPALI kullanır!
+		# Kibir Mekaniği (Level 7 ve Level 8+): Boss gösteriş yapmak için mükemmel stratejiyi feda edip özelliklerini GÖZÜ KAPALI kullanır!
 		if current_level == 7:
 			if is_ultimate_used: score += 10.0 + randf() # Nihai Atağı kesin ve rastgele bir yere atar! (Oyuncuya kazanma şansı doğar)
 			elif is_special_used: score += 5.0 + randf() # L'leri kesin ve rastgele atar!
-		elif current_level == 8:
+		elif current_level >= 8:
 			if is_special_used: score += 5.0 + randf() # Yelkenci çaprazları aktif olarak savurur! (Oyuncunun sinirini bozmak için)
 			
 		if score > best_score:
@@ -893,8 +1000,8 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			
 		alpha = max(alpha, best_score)
 			
-	# Level 7 ve 8 Yorgunluk Mekaniği: Boss o kadar şov yaptıktan sonra BİTKİN düşer! %40 ihtimalle mükemmel hamleyi göremez ve rastgele, saçma sapan bir hata yapar!
-	if (current_level == 7 or current_level == 8) and special_uses == 0 and ultimate_uses == 0:
+	# Level 7 ve 8+ Yorgunluk Mekaniği: Boss o kadar şov yaptıktan sonra BİTKİN düşer! %40 ihtimalle mükemmel hamleyi göremez ve rastgele, saçma sapan bir hata yapar!
+	if (current_level == 7 or current_level >= 8) and special_uses == 0 and ultimate_uses == 0:
 		if randf() < 0.40:
 			print("Boss YORULDU ve hata yaptı!")
 			return all_moves[randi() % all_moves.size()]
