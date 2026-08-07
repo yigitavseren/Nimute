@@ -136,7 +136,7 @@ func _ready():
 	if not $LevelSelectUI/Panel.has_node("Part3Button"):
 		var p3_btn = Button.new()
 		p3_btn.name = "Part3Button"
-		p3_btn.text = "Kısım 3: Tramplenci"
+		p3_btn.text = "Kısım 3: Trapez"
 		p3_btn.add_theme_font_size_override("font_size", 32)
 		p3_btn.position = Vector2(0, 150)
 		p3_btn.size = Vector2(400, 60)
@@ -158,24 +158,29 @@ func _ready():
 		
 		var p3_back = Button.new()
 		p3_back.name = "BackButton3"
-		p3_back.text = "<- Geri"
-		p3_back.add_theme_font_size_override("font_size", 24)
-		p3_back.position = Vector2(100, 410)
-		p3_back.size = Vector2(260, 40)
-		p3_back.add_theme_stylebox_override("normal", get_node("LevelSelectUI/Panel/Part1LevelButtons/BackButton").get_theme_stylebox("normal"))
-		p3_back.add_theme_stylebox_override("hover", get_node("LevelSelectUI/Panel/Part1LevelButtons/BackButton").get_theme_stylebox("hover"))
+		p3_back.text = "< Geri"
+		p3_back.add_theme_font_size_override("font_size", 18)
+		p3_back.position = Vector2(10, 10)
+		p3_back.size = Vector2(80, 40)
 		p3_panel.add_child(p3_back)
 		
 		var l15 = Button.new()
 		l15.text = "Level 1: Trambolin"
 		l15.name = "Level15Button"
 		l15.add_theme_font_size_override("font_size", 24)
-		l15.position = Vector2(100, 100)
+		l15.position = Vector2(100, 60)
 		l15.size = Vector2(260, 40)
-		l15.add_theme_stylebox_override("normal", get_node("LevelSelectUI/Panel/Part1LevelButtons/Level1Button").get_theme_stylebox("normal"))
-		l15.add_theme_stylebox_override("hover", get_node("LevelSelectUI/Panel/Part1LevelButtons/Level1Button").get_theme_stylebox("hover"))
 		l15.pressed.connect(func(): start_level(15))
 		p3_panel.add_child(l15)
+		
+		var l16 = Button.new()
+		l16.text = "Level 2: Akrobatlar"
+		l16.name = "Level16Button"
+		l16.add_theme_font_size_override("font_size", 24)
+		l16.position = Vector2(100, 110)
+		l16.size = Vector2(260, 40)
+		l16.pressed.connect(func(): start_level(16))
+		p3_panel.add_child(l16)
 		
 		p3_btn.pressed.connect(func():
 			$LevelSelectUI/Panel/Part1Button.hide()
@@ -196,7 +201,10 @@ func _ready():
 	# Bütün level butonlarını ortala ve boyutlarını eşitle
 	var btn_w = 260
 	var p_width = 400
-	for p in [$LevelSelectUI/Panel/Part1LevelButtons, $LevelSelectUI/Panel/Part2LevelButtons]:
+	var p_list = [$LevelSelectUI/Panel/Part1LevelButtons, $LevelSelectUI/Panel/Part2LevelButtons]
+	if $LevelSelectUI/Panel.has_node("Part3LevelButtons"): p_list.append($LevelSelectUI/Panel.get_node("Part3LevelButtons"))
+	
+	for p in p_list:
 		for btn in p.get_children():
 			if btn is Button and not btn.name.begins_with("Back"):
 				btn.size.x = btn_w
@@ -339,15 +347,11 @@ func _ready():
 		abilities_btn.show()
 	)
 	
-	for btn in $LevelSelectUI/Panel/Part1LevelButtons.get_children():
-		if btn is Button:
-			btn.add_theme_stylebox_override("normal", btn_normal)
-			btn.add_theme_stylebox_override("hover", btn_hover)
-			
-	for btn in $LevelSelectUI/Panel/Part2LevelButtons.get_children():
-		if btn is Button:
-			btn.add_theme_stylebox_override("normal", btn_normal)
-			btn.add_theme_stylebox_override("hover", btn_hover)
+	for p in p_list:
+		for btn in p.get_children():
+			if btn is Button:
+				btn.add_theme_stylebox_override("normal", btn_normal)
+				btn.add_theme_stylebox_override("hover", btn_hover)
 			
 	var back_normal = btn_normal.duplicate()
 	back_normal.bg_color = Color(0.6, 0.2, 0.2)
@@ -357,6 +361,10 @@ func _ready():
 	$LevelSelectUI/Panel/Part1LevelButtons/BackButton.add_theme_stylebox_override("hover", back_hover)
 	$LevelSelectUI/Panel/Part2LevelButtons/BackButton2.add_theme_stylebox_override("normal", back_normal)
 	$LevelSelectUI/Panel/Part2LevelButtons/BackButton2.add_theme_stylebox_override("hover", back_hover)
+	if $LevelSelectUI/Panel.has_node("Part3LevelButtons/BackButton3"):
+		var b3 = $LevelSelectUI/Panel.get_node("Part3LevelButtons/BackButton3")
+		b3.add_theme_stylebox_override("normal", back_normal)
+		b3.add_theme_stylebox_override("hover", back_hover)
 	# -----------------
 	
 	show_main_menu()
@@ -389,6 +397,9 @@ func start_level(level_id: int):
 func create_board():
 	for s in all_stones:
 		if is_instance_valid(s): s.queue_free()
+	for child in $Board.get_children():
+		if child is Line2D:
+			child.queue_free()
 	all_stones.clear()
 	selected_stones.clear()
 	bomb_stones.clear()
@@ -405,7 +416,7 @@ func create_board():
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	
-	if current_level == 15:
+	if current_level >= 15:
 		if not $Board.has_node("CircusBg"):
 			var bg = TextureRect.new()
 			bg.name = "CircusBg"
@@ -476,7 +487,7 @@ func create_board():
 		
 	if current_level >= 8:
 		if current_level >= 15:
-			$HUD/AILabel.text = "Düşman: Tramplenci\nTramplen Hakkı: " + str(ai_special_uses_left)
+			$HUD/AILabel.text = "Düşman: Trapez\nTramplen Hakkı: " + str(ai_special_uses_left)
 		elif current_level == 14:
 			$HUD/AILabel.text = "Düşman: Yelkenci Boss\nÇapraz Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
 		else:
@@ -1002,10 +1013,72 @@ func create_board():
 			l15_white.append(Vector2(col, 4))  # Bottom row
 			
 		for pos in l15_white + l15_trampolines:
-			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			var s = spawn_stone(int(pos.y), int(pos.x), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
 			if l15_trampolines.has(pos):
 				s.set_type("trampoline")
-
+				
+	elif current_level == 16:
+		var start_y = 0
+		var start_x = 0
+		var grid_size = 55
+		ai_special_uses_left = 3
+		var l16_white = []
+		var l16_trampolines = []
+		var l16_acrobats = [] # [{pos: Vector2, path: Array}]
+		
+		# Sol üst y=-3 (Top)
+		l16_white.append(Vector2(-8, -3))
+		l16_white.append(Vector2(-7, -3))
+		l16_trampolines.append(Vector2(-2, -3))
+		for c in range(2, 6): l16_white.append(Vector2(c, -3))
+		l16_acrobats.append({"pos": Vector2(-4, -3), "path": [Vector2(-4, -3), Vector2(-6, -3), Vector2(-4, -3), Vector2(-3, -3)]})
+		
+		# Orta y=-1
+		l16_white.append(Vector2(-8, -1))
+		l16_white.append(Vector2(-6, -1))
+		l16_white.append(Vector2(6, -1))
+		l16_acrobats.append({"pos": Vector2(-4, -1), "path": [Vector2(-4, -1), Vector2(5, -1), Vector2(-5, -1)]})
+		
+		# Alt y=1
+		l16_trampolines.append(Vector2(-8, 1))
+		for c in range(-3, 3): l16_white.append(Vector2(c, 1))
+		l16_trampolines.append(Vector2(6, 1))
+		
+		# En Alt Akrobatlar y=3
+		l16_acrobats.append({"pos": Vector2(-8, 3), "path": [Vector2(-8, 3), Vector2(-6, 1)]})
+		l16_acrobats.append({"pos": Vector2(6, 3), "path": [Vector2(6, 3), Vector2(4, 3), Vector2(5, 1)]})
+		
+		# Sağ üst trampolinler (-5 ve -7)
+		l16_trampolines.append(Vector2(5, -5))
+		l16_trampolines.append(Vector2(7, -5))
+		l16_trampolines.append(Vector2(5, -7))
+		l16_trampolines.append(Vector2(7, -7))
+		
+		for pos in l16_white + l16_trampolines:
+			var s = spawn_stone(int(pos.y), int(pos.x), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			s.z_index = 1
+			if l16_trampolines.has(pos):
+				s.set_type("trampoline")
+				
+		for acr in l16_acrobats:
+			var s = spawn_stone(int(acr.pos.y), int(acr.pos.x), start_x + acr.pos.x * grid_size, start_y + acr.pos.y * grid_size)
+			s.z_index = 1
+			s.set_type("acrobat")
+			s.acrobat_path = acr.path
+			s.acrobat_step = 0
+			
+			var line = Line2D.new()
+			line.width = 4.0
+			line.default_color = Color(0.9, 0.1, 0.1, 0.5) # Kırmızı
+			line.z_index = 0
+			for p in acr.path:
+				line.add_point(Vector2(start_x + p.x * grid_size + 22, start_y + p.y * grid_size + 22))
+			if acr.path.size() > 0:
+				var first_p = acr.path[0]
+				line.add_point(Vector2(start_x + first_p.x * grid_size + 22, start_y + first_p.y * grid_size + 22))
+			$Board.add_child(line)
+			s.tree_exiting.connect(line.queue_free)
+			
 	if current_level >= 11 and current_level <= 14:
 		spawn_piranhas()
 		
@@ -1515,7 +1588,7 @@ func check_win_condition() -> bool:
 			$HUD/GameOverPanel/GameOverLabel.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
 		else:
 			if current_level >= 15:
-				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nTramplenci Kaybetti!"
+				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nTrapez Kaybetti!"
 			elif current_level >= 8:
 				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nYelkenci Kaybetti!"
 			else:
@@ -1593,8 +1666,8 @@ func play_enemy_turn():
 		elif ai_special_uses_left > 0 and (l_move_masks.has(best_move_mask) or ai_diagonal_move_masks.has(best_move_mask) or (current_level == 15 and get_tramplen_moves(current_board_state).has(best_move_mask))):
 			ai_special_uses_left -= 1
 			if current_level >= 15:
-				$HUD/AILabel.text = "Düşman: Tramplenci\nTramplen Hakkı: " + str(ai_special_uses_left)
-				print("Tramplenci 'Tramplen' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
+				$HUD/AILabel.text = "Düşman: Trapez\nTramplen Hakkı: " + str(ai_special_uses_left)
+				print("Trapez 'Tramplen' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 			elif current_level == 14:
 				$HUD/AILabel.text = "Düşman: Yelkenci Boss\nÇapraz Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
 				print("Yelkenci Boss 'Çapraz' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
@@ -1765,6 +1838,44 @@ func play_piranha_turn():
 	end_piranha_turn()
 
 func end_piranha_turn():
+	current_turn = "Acrobat"
+	play_acrobat_turn()
+
+func play_acrobat_turn():
+	var has_acrobats = false
+	for s in all_stones:
+		if is_instance_valid(s) and not s.is_queued_for_deletion() and s.type == "acrobat":
+			has_acrobats = true
+			break
+			
+	if not has_acrobats:
+		end_acrobat_turn()
+		return
+		
+	var moved = false
+	for s in all_stones:
+		if is_instance_valid(s) and not s.is_queued_for_deletion() and s.type == "acrobat":
+			if s.acrobat_path.size() > 0:
+				var next_step = (s.acrobat_step + 1) % s.acrobat_path.size()
+				var target_pos = s.acrobat_path[next_step]
+				var target_stone = get_stone_at_full(int(target_pos.y), int(target_pos.x))
+				if not target_stone:
+					s.acrobat_step = next_step
+					s.col_index = int(target_pos.x)
+					s.row_index = int(target_pos.y)
+					var target_pixel = Vector2(0 + target_pos.x * 55, 0 + target_pos.y * 55)
+					var tween = get_tree().create_tween()
+					tween.tween_property(s, "position", target_pixel, 0.4).set_trans(Tween.TRANS_SINE)
+					moved = true
+					
+	if moved:
+		await get_tree().create_timer(0.45).timeout
+		generate_all_move_masks()
+		if check_win_condition(): return
+		
+	end_acrobat_turn()
+
+func end_acrobat_turn():
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	print("Sıra sende!")

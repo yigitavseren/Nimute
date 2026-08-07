@@ -7,7 +7,8 @@ var col_index : int = 0
 var is_selected : bool = false
 var base_color : Color = Color(1, 1, 1)
 var type : String = "normal"
-
+var acrobat_path = []
+var acrobat_step : int = 0
 func _ready():
 	pressed.connect(_on_pressed)
 
@@ -16,7 +17,7 @@ func _on_pressed():
 
 func select():
 	is_selected = true
-	modulate = Color(0.8, 0.2, 0.2) # Karanlık kırmızı (seçili)
+	modulate = Color(0.9, 0.1, 0.1) # Kırmızı
 
 func deselect():
 	is_selected = false
@@ -69,6 +70,13 @@ func set_type(new_type: String):
 			self.self_modulate = Color(0.1, 0.1, 0.1, 1)
 			$Icon.texture = null
 			self.text = ">:<"
+	elif type == "acrobat":
+		base_color = Color(1, 1, 1)
+		self.self_modulate = Color(1, 1, 1, 0)
+		$Icon.texture = load("res://Assets/acrobat_cropped.png")
+		$Icon.scale = Vector2(1.0, 1.0)
+		$Icon.position = Vector2(0, 0)
+		self.text = ""
 	else:
 		base_color = Color(1, 1, 1)
 		self.self_modulate = Color(1, 1, 1, 1)
