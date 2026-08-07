@@ -8,6 +8,7 @@ var selection_mode = "none"
 var ai_special_uses_left = 0
 var ai_ultimate_uses_left = 0
 var current_level: int = 1
+var selected_player_ability: String = "L_MOVE"
 
 var normal_move_masks = []
 var l_move_masks = []
@@ -19,6 +20,7 @@ var special_moves = []
 var bomb_stones = []
 var bomb_move_masks = []
 var bomb_stone_ids = []
+var potential_tramplen_edges = []
 var adj_masks = []
 
 var armored_stone_ids = []
@@ -44,22 +46,32 @@ func _ready():
 		$LevelSelectUI/Panel/Part2LevelButtons.hide()
 		$LevelSelectUI/Panel/Part1Button.hide()
 		$LevelSelectUI/Panel/Part2Button.hide()
+		if $LevelSelectUI/Panel.has_node("Part3Button"): $LevelSelectUI/Panel.get_node("Part3Button").hide()
+		if $LevelSelectUI/Panel.has_node("Part3LevelButtons"): $LevelSelectUI/Panel.get_node("Part3LevelButtons").hide()
+		if has_node("LevelSelectUI/Panel/AbilitiesButton"): get_node("LevelSelectUI/Panel/AbilitiesButton").hide()
 	)
 	$LevelSelectUI/Panel/Part2Button.pressed.connect(func():
 		$LevelSelectUI/Panel/Part2LevelButtons.show()
 		$LevelSelectUI/Panel/Part1LevelButtons.hide()
 		$LevelSelectUI/Panel/Part1Button.hide()
 		$LevelSelectUI/Panel/Part2Button.hide()
+		if $LevelSelectUI/Panel.has_node("Part3Button"): $LevelSelectUI/Panel.get_node("Part3Button").hide()
+		if $LevelSelectUI/Panel.has_node("Part3LevelButtons"): $LevelSelectUI/Panel.get_node("Part3LevelButtons").hide()
+		if has_node("LevelSelectUI/Panel/AbilitiesButton"): get_node("LevelSelectUI/Panel/AbilitiesButton").hide()
 	)
 	$LevelSelectUI/Panel/Part1LevelButtons/BackButton.pressed.connect(func():
 		$LevelSelectUI/Panel/Part1LevelButtons.hide()
 		$LevelSelectUI/Panel/Part1Button.show()
 		$LevelSelectUI/Panel/Part2Button.show()
+		if $LevelSelectUI/Panel.has_node("Part3Button"): $LevelSelectUI/Panel.get_node("Part3Button").show()
+		if has_node("LevelSelectUI/Panel/AbilitiesButton"): get_node("LevelSelectUI/Panel/AbilitiesButton").show()
 	)
 	$LevelSelectUI/Panel/Part2LevelButtons/BackButton2.pressed.connect(func():
 		$LevelSelectUI/Panel/Part2LevelButtons.hide()
 		$LevelSelectUI/Panel/Part1Button.show()
 		$LevelSelectUI/Panel/Part2Button.show()
+		if $LevelSelectUI/Panel.has_node("Part3Button"): $LevelSelectUI/Panel.get_node("Part3Button").show()
+		if has_node("LevelSelectUI/Panel/AbilitiesButton"): get_node("LevelSelectUI/Panel/AbilitiesButton").show()
 	)
 	$LevelSelectUI/Panel/Part1LevelButtons/Level1Button.pressed.connect(func(): start_level(1))
 	$LevelSelectUI/Panel/Part1LevelButtons/Level2Button.pressed.connect(func(): start_level(2))
@@ -113,13 +125,73 @@ func _ready():
 		get_node("LevelSelectUI/Panel/Part2LevelButtons/Level14Button").pressed.connect(func(): start_level(14))
 	else:
 		var l14 = Button.new()
-		l14.text = "Level 7: Yelkenli"
+		l14.text = "Level 7: Yelkenli Boss"
 		l14.name = "Level14Button"
 		l14.add_theme_font_size_override("font_size", 24)
 		l14.position = Vector2(100, 360)
 		l14.size = Vector2(250, 40)
 		l14.pressed.connect(func(): start_level(14))
 		$LevelSelectUI/Panel/Part2LevelButtons.add_child(l14)
+	
+	if not $LevelSelectUI/Panel.has_node("Part3Button"):
+		var p3_btn = Button.new()
+		p3_btn.name = "Part3Button"
+		p3_btn.text = "Kısım 3: Tramplenci"
+		p3_btn.add_theme_font_size_override("font_size", 32)
+		p3_btn.position = Vector2(0, 150)
+		p3_btn.size = Vector2(400, 60)
+		var title3_normal = StyleBoxFlat.new()
+		title3_normal.bg_color = Color(0.7, 0.4, 0.8) # Purple
+		var title3_hover = title3_normal.duplicate()
+		title3_hover.bg_color = Color(0.8, 0.5, 0.9)
+		p3_btn.add_theme_stylebox_override("normal", title3_normal)
+		p3_btn.add_theme_stylebox_override("hover", title3_hover)
+		$LevelSelectUI/Panel.add_child(p3_btn)
+		
+		var p3_panel = Panel.new()
+		p3_panel.name = "Part3LevelButtons"
+		p3_panel.self_modulate = Color(1,1,1,0)
+		p3_panel.position = Vector2(0,0)
+		p3_panel.size = $LevelSelectUI/Panel.size
+		p3_panel.hide()
+		$LevelSelectUI/Panel.add_child(p3_panel)
+		
+		var p3_back = Button.new()
+		p3_back.name = "BackButton3"
+		p3_back.text = "<- Geri"
+		p3_back.add_theme_font_size_override("font_size", 24)
+		p3_back.position = Vector2(100, 410)
+		p3_back.size = Vector2(260, 40)
+		p3_back.add_theme_stylebox_override("normal", get_node("LevelSelectUI/Panel/Part1LevelButtons/BackButton").get_theme_stylebox("normal"))
+		p3_back.add_theme_stylebox_override("hover", get_node("LevelSelectUI/Panel/Part1LevelButtons/BackButton").get_theme_stylebox("hover"))
+		p3_panel.add_child(p3_back)
+		
+		var l15 = Button.new()
+		l15.text = "Level 1: Trambolin"
+		l15.name = "Level15Button"
+		l15.add_theme_font_size_override("font_size", 24)
+		l15.position = Vector2(100, 100)
+		l15.size = Vector2(260, 40)
+		l15.add_theme_stylebox_override("normal", get_node("LevelSelectUI/Panel/Part1LevelButtons/Level1Button").get_theme_stylebox("normal"))
+		l15.add_theme_stylebox_override("hover", get_node("LevelSelectUI/Panel/Part1LevelButtons/Level1Button").get_theme_stylebox("hover"))
+		l15.pressed.connect(func(): start_level(15))
+		p3_panel.add_child(l15)
+		
+		p3_btn.pressed.connect(func():
+			$LevelSelectUI/Panel/Part1Button.hide()
+			$LevelSelectUI/Panel/Part2Button.hide()
+			p3_btn.hide()
+			if has_node("LevelSelectUI/Panel/AbilitiesButton"): get_node("LevelSelectUI/Panel/AbilitiesButton").hide()
+			p3_panel.show()
+		)
+		
+		p3_back.pressed.connect(func():
+			p3_panel.hide()
+			$LevelSelectUI/Panel/Part1Button.show()
+			$LevelSelectUI/Panel/Part2Button.show()
+			p3_btn.show()
+			if has_node("LevelSelectUI/Panel/AbilitiesButton"): get_node("LevelSelectUI/Panel/AbilitiesButton").show()
+		)
 	
 	# Bütün level butonlarını ortala ve boyutlarını eşitle
 	var btn_w = 260
@@ -129,6 +201,15 @@ func _ready():
 			if btn is Button and not btn.name.begins_with("Back"):
 				btn.size.x = btn_w
 				btn.position.x = (p_width - btn_w) / 2.0
+			
+	var lvl_lbl = Label.new()
+	lvl_lbl.name = "LevelLabel"
+	lvl_lbl.add_theme_font_size_override("font_size", 28)
+	lvl_lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	lvl_lbl.position = Vector2(450, 20)
+	lvl_lbl.size = Vector2(300, 60)
+	lvl_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	$HUD.add_child(lvl_lbl)
 	
 	# --- UI STYLING ---
 	var panel_style = StyleBoxFlat.new()
@@ -170,6 +251,94 @@ func _ready():
 	$LevelSelectUI/Panel/Part2Button.add_theme_stylebox_override("normal", title2_normal)
 	$LevelSelectUI/Panel/Part2Button.add_theme_stylebox_override("hover", title2_hover)
 	
+	# --- ABILITIES UI ---
+	var abilities_btn = Button.new()
+	abilities_btn.name = "AbilitiesButton"
+	abilities_btn.text = "Özellikler (Abilities)"
+	abilities_btn.add_theme_font_size_override("font_size", 28)
+	abilities_btn.size = Vector2(300, 60)
+	abilities_btn.position = Vector2(50, 420)
+	var abil_style = title2_normal.duplicate()
+	abil_style.bg_color = Color(0.6, 0.2, 0.6)
+	var abil_hover = title2_hover.duplicate()
+	abil_hover.bg_color = Color(0.7, 0.3, 0.7)
+	abilities_btn.add_theme_stylebox_override("normal", abil_style)
+	abilities_btn.add_theme_stylebox_override("hover", abil_hover)
+	$LevelSelectUI/Panel.add_child(abilities_btn)
+	
+	var abilities_panel = Panel.new()
+	abilities_panel.name = "AbilitiesPanel"
+	abilities_panel.size = Vector2(400, 500)
+	abilities_panel.position = Vector2(0, 0)
+	abilities_panel.hide()
+	$LevelSelectUI/Panel.add_child(abilities_panel)
+	
+	var abil_title = Label.new()
+	abil_title.text = "Kazanılan Özellikler"
+	abil_title.add_theme_font_size_override("font_size", 32)
+	abil_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	abil_title.size = Vector2(400, 50)
+	abil_title.position = Vector2(0, 20)
+	abilities_panel.add_child(abil_title)
+	
+	var l_btn = Button.new()
+	l_btn.text = "L Hamlesi (Zürafadan) [SEÇİLİ]"
+	l_btn.add_theme_font_size_override("font_size", 22)
+	l_btn.size = Vector2(360, 50)
+	l_btn.position = Vector2(20, 100)
+	abilities_panel.add_child(l_btn)
+	
+	var diag_btn = Button.new()
+	diag_btn.text = "Çapraz Hamle (Yelkenciden)"
+	diag_btn.add_theme_font_size_override("font_size", 22)
+	diag_btn.size = Vector2(360, 50)
+	diag_btn.position = Vector2(20, 170)
+	abilities_panel.add_child(diag_btn)
+	
+	var abil_back_normal = StyleBoxFlat.new()
+	abil_back_normal.bg_color = Color(0.6, 0.2, 0.2)
+	abil_back_normal.corner_radius_top_left = 5
+	abil_back_normal.corner_radius_top_right = 5
+	abil_back_normal.corner_radius_bottom_right = 5
+	abil_back_normal.corner_radius_bottom_left = 5
+	var abil_back_hover = abil_back_normal.duplicate()
+	abil_back_hover.bg_color = Color(0.8, 0.3, 0.3)
+	
+	var abil_back = Button.new()
+	abil_back.text = "< Geri"
+	abil_back.add_theme_font_size_override("font_size", 24)
+	abil_back.size = Vector2(100, 40)
+	abil_back.position = Vector2(20, 440)
+	abil_back.add_theme_stylebox_override("normal", abil_back_normal)
+	abil_back.add_theme_stylebox_override("hover", abil_back_hover)
+	abilities_panel.add_child(abil_back)
+	
+	l_btn.pressed.connect(func():
+		selected_player_ability = "L_MOVE"
+		l_btn.text = "L Hamlesi (Zürafadan) [SEÇİLİ]"
+		diag_btn.text = "Çapraz Hamle (Yelkenciden)"
+	)
+	diag_btn.pressed.connect(func():
+		selected_player_ability = "DIAGONAL_MOVE"
+		l_btn.text = "L Hamlesi (Zürafadan)"
+		diag_btn.text = "Çapraz Hamle (Yelkenciden) [SEÇİLİ]"
+	)
+	
+	abilities_btn.pressed.connect(func():
+		$LevelSelectUI/Panel/Part1Button.hide()
+		$LevelSelectUI/Panel/Part2Button.hide()
+		if $LevelSelectUI/Panel.has_node("Part3Button"): $LevelSelectUI/Panel.get_node("Part3Button").hide()
+		abilities_btn.hide()
+		abilities_panel.show()
+	)
+	abil_back.pressed.connect(func():
+		abilities_panel.hide()
+		$LevelSelectUI/Panel/Part1Button.show()
+		$LevelSelectUI/Panel/Part2Button.show()
+		if $LevelSelectUI/Panel.has_node("Part3Button"): $LevelSelectUI/Panel.get_node("Part3Button").show()
+		abilities_btn.show()
+	)
+	
 	for btn in $LevelSelectUI/Panel/Part1LevelButtons.get_children():
 		if btn is Button:
 			btn.add_theme_stylebox_override("normal", btn_normal)
@@ -196,8 +365,12 @@ func show_main_menu():
 	$LevelSelectUI.show()
 	$LevelSelectUI/Panel/Part1Button.show()
 	$LevelSelectUI/Panel/Part2Button.show()
+	if $LevelSelectUI/Panel.has_node("Part3Button"): $LevelSelectUI/Panel.get_node("Part3Button").show()
+	if has_node("LevelSelectUI/Panel/AbilitiesButton"): get_node("LevelSelectUI/Panel/AbilitiesButton").show()
+	if has_node("LevelSelectUI/Panel/AbilitiesPanel"): get_node("LevelSelectUI/Panel/AbilitiesPanel").hide()
 	$LevelSelectUI/Panel/Part1LevelButtons.hide()
 	$LevelSelectUI/Panel/Part2LevelButtons.hide()
+	if $LevelSelectUI/Panel.has_node("Part3LevelButtons"): $LevelSelectUI/Panel.get_node("Part3LevelButtons").hide()
 	$Board.hide()
 	$EndTurnButton.hide()
 	$MainMenuButton.hide()
@@ -232,15 +405,34 @@ func create_board():
 	current_turn = "Player"
 	$EndTurnButton.disabled = false
 	
-	if current_level == 9 or current_level >= 10:
-		$Background.color = Color(0.05, 0.4, 0.6) # Okyanus Mavisi
+	if current_level == 15:
+		if not $Board.has_node("CircusBg"):
+			var bg = TextureRect.new()
+			bg.name = "CircusBg"
+			bg.texture = load("res://Assets/circus_bg2.png")
+			if "STRETCH_TILE" in TextureRect:
+				bg.stretch_mode = TextureRect.STRETCH_TILE
+			bg.size = Vector2(3300, 3300)
+			bg.position = Vector2(-1655.5, -1655.5)
+			bg.z_index = 0
+			$Board.add_child(bg)
+		else:
+			var existing_bg = $Board.get_node("CircusBg")
+			existing_bg.z_index = 0
+			existing_bg.show()
+		$Background.color = Color(0.1, 0.1, 0.1)
 	else:
-		$Background.color = Color(0.08, 0.08, 0.08) # Varsayılan koyu gri
+		if $Board.has_node("CircusBg"):
+			$Board.get_node("CircusBg").hide()
+		if current_level == 9 or current_level >= 10:
+			$Background.color = Color(0.05, 0.4, 0.6) # Okyanus Mavisi
+		else:
+			$Background.color = Color(0.08, 0.08, 0.08) # Varsayılan koyu gri
 		
 	if has_node("HUD/PiranhaSign"):
 		get_node("HUD/PiranhaSign").queue_free()
 		
-	if current_level >= 11:
+	if current_level >= 11 and current_level <= 14:
 		var sign_panel = PanelContainer.new()
 		sign_panel.name = "PiranhaSign"
 		sign_panel.position = Vector2(20, 100)
@@ -270,19 +462,31 @@ func create_board():
 	if current_level == 7 or current_level == 14: ai_ultimate_uses_left = 1
 	else: ai_ultimate_uses_left = 0
 	
+	if current_level >= 15:
+		$HUD/LevelLabel.text = "Kısım 3\nLevel " + str(current_level - 14)
+	elif current_level >= 8:
+		$HUD/LevelLabel.text = "Kısım 2\nLevel " + str(current_level - 7)
+	else:
+		$HUD/LevelLabel.text = "Kısım 1\nLevel " + str(current_level)
+	
 	if current_level == 7 or current_level >= 8:
 		$Board.scale = Vector2(0.85, 0.85)
 	else:
 		$Board.scale = Vector2(1.0, 1.0)
 		
 	if current_level >= 8:
-		if current_level == 14:
+		if current_level >= 15:
+			$HUD/AILabel.text = "Düşman: Tramplenci\nTramplen Hakkı: " + str(ai_special_uses_left)
+		elif current_level == 14:
 			$HUD/AILabel.text = "Düşman: Yelkenci Boss\nÇapraz Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
 		else:
 			$HUD/AILabel.text = "Düşman: Yelkenci\nÇapraz Hakkı: " + str(ai_special_uses_left)
 		$HUD/ToggleLMoveButton.show()
 		$HUD/ToggleLMoveButton.button_pressed = false
-		$HUD/ToggleLMoveButton.text = "L Hamlesi Kullan (1 Kaldı)"
+		if selected_player_ability == "L_MOVE":
+			$HUD/ToggleLMoveButton.text = "L Hamlesi Kullan (1 Kaldı)"
+		elif selected_player_ability == "DIAGONAL_MOVE":
+			$HUD/ToggleLMoveButton.text = "Çapraz Hamle Kullan (1 Kaldı)"
 		$HUD/ToggleLMoveButton.disabled = false
 	else:
 		$HUD/ToggleLMoveButton.hide()
@@ -776,7 +980,33 @@ func create_board():
 				lifebuoy_ids.append(all_stones.find(s))
 				s.set_type("lifebuoy")
 
-	if current_level >= 11:
+	elif current_level == 15:
+		var start_y = 0
+		var start_x = 0
+		var grid_size = 55
+		
+		var l15_white = []
+		var l15_trampolines = []
+		
+		for col in range(-6, 7):
+			if col in [-6, -2, 2, 6]:
+				l15_trampolines.append(Vector2(col, -2))
+				l15_trampolines.append(Vector2(col, 2))
+			else:
+				l15_white.append(Vector2(col, -2))
+				l15_white.append(Vector2(col, 2))
+				
+		for col in [-6, -2, 2, 6]:
+			l15_white.append(Vector2(col, -4)) # Top row
+			l15_white.append(Vector2(col, 0))  # Middle row
+			l15_white.append(Vector2(col, 4))  # Bottom row
+			
+		for pos in l15_white + l15_trampolines:
+			var s = spawn_stone(int(pos.x), int(pos.y), start_x + pos.x * grid_size, start_y + pos.y * grid_size)
+			if l15_trampolines.has(pos):
+				s.set_type("trampoline")
+
+	if current_level >= 11 and current_level <= 14:
 		spawn_piranhas()
 		
 	generate_all_move_masks()
@@ -808,7 +1038,7 @@ func spawn_piranhas():
 	var candidates = []
 	for i in range(all_stones.size()):
 		var s = all_stones[i]
-		if bomb_stones.has(s) or armored_stone_ids.has(i) or lifebuoy_ids.has(i) or lily_pad_ids.has(i):
+		if bomb_stones.has(s) or armored_stone_ids.has(i) or lifebuoy_ids.has(i) or lily_pad_ids.has(i) or s.type == "trampoline":
 			continue
 		var neighbors = 0
 		for dir in [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1), Vector2(1,1), Vector2(1,-1), Vector2(-1,1), Vector2(-1,-1)]:
@@ -914,12 +1144,59 @@ func respawn_lily_pad(info):
 	$Board.add_child(s)
 	all_stones[info.index] = s
 
+func _dfs_normal_paths(last_stone, current_mask, current_seg, current_dir):
+	var is_trampoline = (last_stone.type == "trampoline")
+	var explore_dirs = [current_dir]
+	if is_trampoline:
+		explore_dirs = [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1)]
+		
+	for d in explore_dirs:
+		var r = last_stone.row_index
+		var c = last_stone.col_index
+		var steps = 2 if is_trampoline else 1
+		r += int(d.x) * steps
+		c += int(d.y) * steps
+		
+		var next_s = get_stone_at_full(r, c)
+		if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
+			var next_idx = all_stones.find(next_s)
+			if piranha_ids.has(next_idx) or (lifebuoy_ids.has(next_idx) and not is_lifebuoy_isolated(next_idx)): continue
+			if current_seg.has(next_s): continue
+			
+			var next_mask = current_mask | (1 << next_idx)
+			if not normal_move_masks.has(next_mask): normal_move_masks.append(next_mask)
+			
+			var next_seg = current_seg.duplicate()
+			next_seg.append(next_s)
+			_dfs_normal_paths(next_s, next_mask, next_seg, d)
+
 func generate_all_move_masks():
 	normal_move_masks.clear()
 	ai_diagonal_move_masks.clear()
 	special_moves.clear()
 	bomb_move_masks.clear()
 	bomb_stone_ids.clear()
+	potential_tramplen_edges.clear()
+	
+	if current_level == 15:
+		for i in range(all_stones.size()):
+			if not is_instance_valid(all_stones[i]) or all_stones[i].is_queued_for_deletion(): continue
+			for j in range(i + 1, all_stones.size()):
+				if not is_instance_valid(all_stones[j]) or all_stones[j].is_queued_for_deletion(): continue
+				var r1 = all_stones[i].row_index
+				var c1 = all_stones[i].col_index
+				var r2 = all_stones[j].row_index
+				var c2 = all_stones[j].col_index
+				var diff_r = r2 - r1
+				var diff_c = c2 - c1
+				if (abs(diff_r) == 2 and diff_c == 0) or (abs(diff_c) == 2 and diff_r == 0):
+					var mid_r = r1 + diff_r / 2
+					var mid_c = c1 + diff_c / 2
+					var mid_s = get_stone_at_full(mid_r, mid_c)
+					var mid_idx = -1
+					if mid_s and is_instance_valid(mid_s) and not mid_s.is_queued_for_deletion():
+						mid_idx = all_stones.find(mid_s)
+					potential_tramplen_edges.append({"a": i, "b": j, "mid": mid_idx})
 	
 	# Normal segmentler (Düz ve Çapraz)
 	var normal_dirs = [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1)]
@@ -929,27 +1206,11 @@ func generate_all_move_masks():
 		var s_idx = all_stones.find(s)
 		if piranha_ids.has(s_idx) or (lifebuoy_ids.has(s_idx) and not is_lifebuoy_isolated(s_idx)): continue
 		
+		var mask = (1 << s_idx)
+		if not normal_move_masks.has(mask): normal_move_masks.append(mask)
+		
 		for d in normal_dirs:
-			var current_seg = [s]
-			var mask = (1 << s_idx)
-			if not normal_move_masks.has(mask): normal_move_masks.append(mask)
-				
-			var r = s.row_index
-			var c = s.col_index
-			while true:
-				r += int(d.x)
-				c += int(d.y)
-				var next_s = get_stone_at_full(r, c)
-				if next_s and is_instance_valid(next_s) and not next_s.is_queued_for_deletion():
-					var next_idx = all_stones.find(next_s)
-					if piranha_ids.has(next_idx) or (lifebuoy_ids.has(next_idx) and not is_lifebuoy_isolated(next_idx)): break
-					
-					current_seg.append(next_s)
-					mask |= (1 << all_stones.find(next_s))
-					if not normal_move_masks.has(mask): normal_move_masks.append(mask)
-				else:
-					break
-					
+			_dfs_normal_paths(s, mask, [s], d)
 	if current_level >= 8:
 		var diag_dirs = [Vector2(1,1), Vector2(-1,-1), Vector2(1,-1), Vector2(-1,1)]
 		for s in all_stones:
@@ -963,6 +1224,7 @@ func generate_all_move_masks():
 				var r = s.row_index
 				var c = s.col_index
 				while true:
+					if current_seg.back().type == "trampoline": break # Trambolinden çapraz zıplama yok
 					r += int(d.x)
 					c += int(d.y)
 					var next_s = get_stone_at_full(r, c)
@@ -1129,7 +1391,9 @@ func validate_selection():
 	elif normal_move_masks.has(mask):
 		is_valid = true
 	elif current_level >= 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
-		if l_move_masks.has(mask):
+		if selected_player_ability == "L_MOVE" and l_move_masks.has(mask):
+			is_valid = true
+		elif selected_player_ability == "DIAGONAL_MOVE" and ai_diagonal_move_masks.has(mask):
 			is_valid = true
 			
 	$EndTurnButton.disabled = not is_valid
@@ -1146,10 +1410,19 @@ func end_turn():
 		mask |= (1 << all_stones.find(s))
 		
 	if current_level >= 8 and player_special_uses_left > 0 and $HUD/ToggleLMoveButton.button_pressed:
-		if l_move_masks.has(mask):
+		var valid_special = false
+		if selected_player_ability == "L_MOVE" and l_move_masks.has(mask):
+			valid_special = true
+		elif selected_player_ability == "DIAGONAL_MOVE" and ai_diagonal_move_masks.has(mask):
+			valid_special = true
+			
+		if valid_special:
 			player_special_uses_left -= 1
 			$HUD/ToggleLMoveButton.set_pressed_no_signal(false)
-			$HUD/ToggleLMoveButton.text = "L Hamlesi Kullan (" + str(player_special_uses_left) + " Kaldı)"
+			if selected_player_ability == "L_MOVE":
+				$HUD/ToggleLMoveButton.text = "L Hamlesi Kullan (" + str(player_special_uses_left) + " Kaldı)"
+			elif selected_player_ability == "DIAGONAL_MOVE":
+				$HUD/ToggleLMoveButton.text = "Çapraz Hamle Kullan (" + str(player_special_uses_left) + " Kaldı)"
 			if player_special_uses_left == 0:
 				$HUD/ToggleLMoveButton.disabled = true
 		
@@ -1241,7 +1514,9 @@ func check_win_condition() -> bool:
 			$HUD/GameOverPanel/GameOverLabel.text = "KAYBETTİN!\n(Son Taşı Alan Kaybeder)"
 			$HUD/GameOverPanel/GameOverLabel.add_theme_color_override("font_color", Color(1, 0.2, 0.2))
 		else:
-			if current_level >= 8:
+			if current_level >= 15:
+				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nTramplenci Kaybetti!"
+			elif current_level >= 8:
 				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nYelkenci Kaybetti!"
 			else:
 				$HUD/GameOverPanel/GameOverLabel.text = "KAZANDIN!\nZürafa Kaybetti!"
@@ -1315,9 +1590,12 @@ func play_enemy_turn():
 			else:
 				$HUD/AILabel.text = "Zürafa Boss 'L' Hakkı: " + str(ai_special_uses_left) + "\nZürafa 'Nihai Atak' Hakkı: " + str(ai_ultimate_uses_left)
 				print("Zürafa Boss 'Nihai Atak' özel yeteneğini kullandı!")
-		elif ai_special_uses_left > 0 and (l_move_masks.has(best_move_mask) or ai_diagonal_move_masks.has(best_move_mask)):
+		elif ai_special_uses_left > 0 and (l_move_masks.has(best_move_mask) or ai_diagonal_move_masks.has(best_move_mask) or (current_level == 15 and get_tramplen_moves(current_board_state).has(best_move_mask))):
 			ai_special_uses_left -= 1
-			if current_level == 14:
+			if current_level >= 15:
+				$HUD/AILabel.text = "Düşman: Tramplenci\nTramplen Hakkı: " + str(ai_special_uses_left)
+				print("Tramplenci 'Tramplen' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
+			elif current_level == 14:
 				$HUD/AILabel.text = "Düşman: Yelkenci Boss\nÇapraz Hakkı: " + str(ai_special_uses_left) + "\nGirdap Hakkı: " + str(ai_ultimate_uses_left)
 				print("Yelkenci Boss 'Çapraz' özel yeteneğini kullandı! (Kalan hak: ", ai_special_uses_left, ")")
 			elif current_level >= 8:
@@ -1491,6 +1769,35 @@ func end_piranha_turn():
 	$EndTurnButton.disabled = false
 	print("Sıra sende!")
 
+func get_tramplen_moves(board_state: int) -> Array:
+	var moves = []
+	var adj = {}
+	for edge in potential_tramplen_edges:
+		if (board_state & (1 << edge.a)) != 0 and (board_state & (1 << edge.b)) != 0:
+			if edge.mid == -1 or (board_state & (1 << edge.mid)) == 0:
+				if not adj.has(edge.a): adj[edge.a] = []
+				if not adj.has(edge.b): adj[edge.b] = []
+				if not adj[edge.a].has(edge.b): adj[edge.a].append(edge.b)
+				if not adj[edge.b].has(edge.a): adj[edge.b].append(edge.a)
+				
+	for start_node in adj.keys():
+		var stack = [ [start_node] ]
+		while stack.size() > 0:
+			var path = stack.pop_back()
+			if path.size() > 1:
+				var mask = 0
+				for n in path:
+					mask |= (1 << n)
+				if not moves.has(mask):
+					moves.append(mask)
+			var last_node = path.back()
+			for neighbor in adj[last_node]:
+				if not path.has(neighbor):
+					var new_path = path.duplicate()
+					new_path.append(neighbor)
+					stack.append(new_path)
+	return moves
+
 func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, special_uses: int, ultimate_uses: int) -> int:
 	search_node_count = 0
 	var best_score: float = -9999.0
@@ -1509,7 +1816,9 @@ func get_best_move_mask(board_state: int, armor_state: int, max_depth: int, spec
 			
 	var special_moves = []
 	if special_uses > 0:
-		if current_level >= 8:
+		if current_level == 15:
+			special_moves = get_tramplen_moves(board_state)
+		elif current_level >= 8:
 			for m in ai_diagonal_move_masks:
 				if (board_state & m) == m: special_moves.append(m)
 		else:
@@ -1720,7 +2029,9 @@ func minimax(board_state: int, armor_state: int, depth: int, alpha: float, beta:
 			
 	var special_moves = []
 	if is_ai_turn and special_uses > 0:
-		if current_level >= 8:
+		if current_level == 15:
+			special_moves = get_tramplen_moves(board_state)
+		elif current_level >= 8:
 			for m in ai_diagonal_move_masks:
 				if (board_state & m) == m: special_moves.append(m)
 		else:

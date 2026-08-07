@@ -6,6 +6,7 @@ var row_index : int = -1
 var col_index : int = 0
 var is_selected : bool = false
 var base_color : Color = Color(1, 1, 1)
+var type : String = "normal"
 
 func _ready():
 	pressed.connect(_on_pressed)
@@ -21,7 +22,8 @@ func deselect():
 	is_selected = false
 	modulate = base_color # Normal
 
-func set_type(type: String):
+func set_type(new_type: String):
+	self.type = new_type
 	if type == "bomb":
 		base_color = Color(1, 1, 1) # Çizimin kendi renklerini koru
 		self.self_modulate = Color(1, 1, 1, 0)
@@ -46,6 +48,12 @@ func set_type(type: String):
 		$Icon.texture = load("res://Assets/lifebuoy_transparent.png")
 		$Icon.scale = Vector2(1.8, 1.8)
 		$Icon.position = Vector2(-17.6, -17.6) # Centering the scaled up icon
+	elif type == "trampoline":
+		base_color = Color(1, 1, 1) 
+		self.self_modulate = Color(1, 1, 1, 0)
+		$Icon.texture = load("res://Assets/trampoline.png")
+		$Icon.scale = Vector2(1.0, 1.0)
+		$Icon.position = Vector2(0, 0)
 	elif type == "piranha":
 		var tex = load("res://Assets/piranha.png")
 		if tex:
